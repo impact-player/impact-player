@@ -1,0 +1,15 @@
+[workspace]
+members = ["http-server"]
+
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+authors = ["Tarun Kumar"]
+
+[workspace.dependencies]
+# HTTP Server dependecies
+axum = "0.8.4"
+dotenv = "0.15.0"
+env_logger = "0.11.8"

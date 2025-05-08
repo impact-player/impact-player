@@ -1,4 +1,3 @@
-use super::{OrderSide, OrderType};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -11,65 +10,60 @@ pub enum MessageToEngine {
     CancelOrder { data: CancelOrderPayload },
     #[serde(rename = "GET_DEPTH")]
     GetDepth { data: GetDepthPayload },
+    #[serde(rename = "GET_QUOTE")]
+    GetQuote { data: GetQuotePayload },
     #[serde(rename = "GET_OPEN_ORDERS")]
     GetOpenOrders { data: GetOpenOrdersPayload },
-    #[serde(rename = "GET_QUOTE")]
-    GetQuote { data: GetQuoteRequest },
     #[serde(rename = "GET_USER_BALANCES")]
     GetUserBalances { data: GetUserBalancesPayload },
-    #[serde(rename = "GET_MARGIN_POSITIONS")]
-    GetMarginPositions { data: GetMarginPositionsPayload },
-    #[serde(rename = "GET_TICKER")]
-    GetTicker {
-        market: String,
-        order_type: OrderType,
-    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateOrderPayload {
+    #[serde(rename = "userId")]
     pub user_id: String,
     pub market: String,
     pub price: Decimal,
     pub quantity: Decimal,
     pub side: OrderSide,
-    pub order_type: OrderType,
-    pub is_margin: bool,
-    pub leverage: Option<Decimal>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CancelOrderPayload {
+    #[serde(rename = "orderId")]
     pub order_id: String,
+    #[serde(rename = "userId")]
     pub user_id: String,
     pub market: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct GetDepthPayload {
     pub market: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GetOpenOrdersPayload {
-    pub user_id: String,
+pub struct GetQuotePayload {
     pub market: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GetQuoteRequest {
-    pub market: String,
-    pub order_type: OrderType,
     pub side: OrderSide,
     pub quantity: Decimal,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct GetOpenOrdersPayload {
+    #[serde(rename = "userId")]
+    pub user_id: String,
+    pub market: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct GetUserBalancesPayload {
+    #[serde(rename = "userId")]
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GetMarginPositionsPayload {
-    pub user_id: String,
+#[derive(Debug, Serialize, Deserialize)]
+pub enum OrderSide {
+    Bid,
+    Ask,
 }

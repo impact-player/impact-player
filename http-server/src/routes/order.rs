@@ -1,5 +1,7 @@
 use std::sync::Arc;
+
 use axum::{
+    debug_handler,
     extract::{Query, State},
     Json,
 };
@@ -7,8 +9,8 @@ use serde_json::{json, Value};
 
 use crate::{
     models::{
-        CancelOrderPayload, CreateOrderPayload, GetMarginPositionsPayload, GetMarginPositionsQuery,
-        GetOpenOrdersPayload, GetQuoteRequest, MessageToEngine, OpenOrdersQuery,
+        CancelOrderPayload, CreateOrderPayload, GetOpenOrdersPayload, GetQuotePayload,
+        MessageToEngine,
     },
     state::AppState,
 };
@@ -43,9 +45,9 @@ pub async fn cancel_order(
 
 pub async fn get_quote(
     State(state): State<Arc<AppState>>,
-    Json(quote_data): Json<GetQuoteRequest>,
+    Json(order_data): Json<GetQuotePayload>,
 ) -> Json<Value> {
-    let message = MessageToEngine::GetQuote { data: quote_data };
+    let message = MessageToEngine::GetQuote { data: order_data };
 
     match state.redis_manager.send_and_wait(message) {
         Ok(response) => Json(json!(response)),
@@ -57,32 +59,9 @@ pub async fn get_quote(
 
 pub async fn open_orders(
     State(state): State<Arc<AppState>>,
-    Query(params): Query<OpenOrdersQuery>,
+    Query(order_data): Query<GetOpenOrdersPayload>,
 ) -> Json<Value> {
-    let message = MessageToEngine::GetOpenOrders {
-        data: GetOpenOrdersPayload {
-            user_id: params.user_id,
-            market: params.market,
-        },
-    };
-
-    match state.redis_manager.send_and_wait(message) {
-        Ok(response) => Json(json!(response)),
-        Err(e) => Json(json!({
-            "error": format!("Redis error: {}", e)
-        })),
-    }
-}
-
-pub async fn margin_positions(
-    State(state): State<Arc<AppState>>,
-    Query(params): Query<GetMarginPositionsQuery>,
-) -> Json<Value> {
-    let message = MessageToEngine::GetMarginPositions {
-        data: GetMarginPositionsPayload {
-            user_id: params.user_id,
-        },
-    };
+    let message = MessageToEngine::GetOpenOrders { data: order_data };
 
     match state.redis_manager.send_and_wait(message) {
         Ok(response) => Json(json!(response)),

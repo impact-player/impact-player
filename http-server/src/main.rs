@@ -1,27 +1,28 @@
+use std::sync::Arc;
+
+use anyhow::Result;
 use axum::{
     http::{header::CONTENT_TYPE, HeaderValue, Method},
     routing::{delete, get, post},
     Router,
 };
 use dotenv::dotenv;
-use std::sync::Arc;
-
+use routes::{cancel_order, create_order, get_quote, open_orders};
 use state::AppState;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{error, info};
 
-mod config;
 mod models;
 mod routes;
 mod services;
 mod state;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
     dotenv().ok();
 
-    let app_state = Arc::new(AppState::new().await);
+    let app_state = Arc::new(AppState::new());
 
     let app = Router::new()
         .nest(
@@ -31,14 +32,11 @@ async fn main() {
                 .nest(
                     "/order",
                     Router::new()
-                        .route("/create", post(routes::create_order))
-                        .route("/cancel", delete(routes::cancel_order))
-                        .route("/open", get(routes::open_orders))
-                        .route("/quote", post(routes::get_quote))
-                        .route("/margin-positions", get(routes::margin_positions)),
-                )
-                .route("/depth", get(routes::get_depth))
-                .route("/ticker", get(routes::get_ticker)),
+                        .route("/create", post(create_order))
+                        .route("/cancel", delete(cancel_order))
+                        .route("/open", get(open_orders))
+                        .route("/quote", post(get_quote)),
+                ),
         )
         .layer(TraceLayer::new_for_http())
         .layer(
@@ -51,9 +49,11 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
 
-    info!("Listening on {}", listener.local_addr().unwrap());
+    info!("Listening on {}", listener.local_addr()?);
     axum::serve(listener, app).await.unwrap_or_else(|e| {
         error!("Server error: {}", e);
         std::process::exit(1);
     });
+
+    Ok(())
 }

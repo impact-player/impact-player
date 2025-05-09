@@ -37,7 +37,7 @@ pub struct CancelOrderPayload {
     pub market: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GetDepthPayload {
     pub market: String,
 }
@@ -56,7 +56,7 @@ pub struct GetOpenOrdersPayload {
     pub market: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GetUserBalancesPayload {
     #[serde(rename = "userId")]
     pub user_id: String,

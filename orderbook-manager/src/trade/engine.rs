@@ -14,7 +14,7 @@ use crate::{
         OpenOrdersPayload, Order, OrderCancelledPayload, OrderPlacedPayload, OrderSide, User,
         UserBalancesPayload,
     },
-    services::{redis_manager, RedisManager},
+    services::RedisManager,
 };
 
 use super::Orderbook;

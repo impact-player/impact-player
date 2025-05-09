@@ -24,7 +24,7 @@ fn main() -> Result<()> {
         if let Some((_, message)) = response {
             let parsed_message: IncomingMessage = serde_json::from_str(&message)?;
 
-            println!("message: {:#?}", parsed_message);
+            engine.process(parsed_message.client_id, parsed_message.message);
         }
     }
 }

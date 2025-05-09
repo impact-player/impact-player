@@ -126,7 +126,24 @@ impl Engine {
 
                 let _ = redis_manager.send_to_api(&client_id, &message);
             }
-            MessageFromApi::GetDepth { data } => {}
+            MessageFromApi::GetDepth { data } => {
+                let market: Vec<&str> = data.market.split('_').collect();
+                let base_asset = market[0];
+                let quote_asset = market[1];
+                let mut orderbooks = self.orderbooks.lock().unwrap();
+
+                let orderbook = orderbooks
+                    .iter_mut()
+                    .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
+                    .ok_or_else(|| anyhow::anyhow!("Market not found"))
+                    .expect("Market not found");
+
+                let depth = orderbook.get_depth();
+
+                let redis_manager = RedisManager::instance();
+                let message = MessageToApi::Depth { payload: depth };
+                let _ = redis_manager.send_to_api(&client_id, &message);
+            }
             MessageFromApi::GetOpenOrders { data } => {}
             MessageFromApi::GetQuote { data } => {}
             MessageFromApi::GetUserBalances { data } => {}

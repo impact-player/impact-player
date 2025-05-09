@@ -52,12 +52,12 @@ pub struct OrderDetails {
 }
 
 // User Balances
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserBalancesPayload {
     pub balances: Vec<Balance>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Balance {
     pub ticker: String,
     pub balance: Decimal,

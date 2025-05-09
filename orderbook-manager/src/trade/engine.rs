@@ -10,10 +10,11 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        Balance, CancelOrderPayload, CreateOrderPayload, MessageFromApi, MessageToApi, Order,
-        OrderCancelledPayload, OrderPlacedPayload, OrderSide, User,
+        Balance, CancelOrderPayload, CreateOrderPayload, MessageFromApi, MessageToApi,
+        OpenOrdersPayload, Order, OrderCancelledPayload, OrderPlacedPayload, OrderSide, User,
+        UserBalancesPayload,
     },
-    services::RedisManager,
+    services::{redis_manager, RedisManager},
 };
 
 use super::Orderbook;
@@ -144,9 +145,73 @@ impl Engine {
                 let message = MessageToApi::Depth { payload: depth };
                 let _ = redis_manager.send_to_api(&client_id, &message);
             }
-            MessageFromApi::GetOpenOrders { data } => {}
-            MessageFromApi::GetQuote { data } => {}
-            MessageFromApi::GetUserBalances { data } => {}
+            MessageFromApi::GetOpenOrders { data } => {
+                let market: Vec<&str> = data.market.split('_').collect();
+                let base_asset = market[0];
+                let quote_asset = market[1];
+                let mut orderbooks = self.orderbooks.lock().unwrap();
+
+                let orderbook = orderbooks
+                    .iter_mut()
+                    .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
+                    .ok_or_else(|| anyhow::anyhow!("Market not found"))
+                    .expect("Market not found");
+
+                let mut open_orders = Vec::new();
+
+                for bid in orderbook.bids.iter() {
+                    if bid.user_id == data.user_id {
+                        open_orders.push(bid.clone());
+                    }
+                }
+
+                for ask in orderbook.asks.iter() {
+                    if ask.user_id == data.user_id {
+                        open_orders.push(ask.clone());
+                    }
+                }
+
+                let redis_manager = RedisManager::instance();
+                let message = MessageToApi::OpenOrder {
+                    payload: OpenOrdersPayload { open_orders },
+                };
+
+                let _ = redis_manager.send_to_api(&client_id, &message);
+            }
+            MessageFromApi::GetQuote { data } => {
+                let market: Vec<&str> = data.market.split('_').collect();
+                let base_asset = market[0];
+                let quote_asset = market[1];
+                let mut orderbooks = self.orderbooks.lock().unwrap();
+
+                let orderbook = orderbooks
+                    .iter_mut()
+                    .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
+                    .ok_or_else(|| anyhow::anyhow!("Market not found"))
+                    .expect("Market not found");
+
+                let quote = orderbook.get_quote_detail(data.quantity, data.side);
+
+                let redis_manager = RedisManager::instance();
+                let message = MessageToApi::Quote { payload: quote };
+                let _ = redis_manager.send_to_api(&client_id, &message);
+            }
+            MessageFromApi::GetUserBalances { data } => {
+                let mut users = self.users.lock().unwrap();
+                let user = users
+                    .iter_mut()
+                    .find(|u| u.id == data.user_id)
+                    .expect("User not found");
+
+                let redis_manager = RedisManager::instance();
+                let message = MessageToApi::UserBalances {
+                    payload: UserBalancesPayload {
+                        balances: user.balances.clone(),
+                    },
+                };
+
+                let _ = redis_manager.send_to_api(&client_id, &message);
+            }
         }
     }
 

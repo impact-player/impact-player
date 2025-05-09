@@ -1,4 +1,4 @@
-use redis::{Client, Commands, PubSub, RedisResult};
+use redis::{Client, Commands, RedisResult};
 use uuid::Uuid;
 
 use crate::models::{MessageFromEngine, MessageToEngine};

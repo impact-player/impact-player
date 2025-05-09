@@ -1,0 +1,10 @@
+[package]
+name = "wss"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+futures-util = "0.3.31"
+tokio = { workspace = true, features = ["full"] }
+tokio-tungstenite = { version = "0.26.2", features = ["native-tls"] }

@@ -10,8 +10,8 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        Balance, CreateOrderPayload, MessageFromApi, MessageToApi, Order, OrderCancelledPayload,
-        OrderPlacedPayload, OrderSide, User,
+        Balance, CancelOrderPayload, CreateOrderPayload, MessageFromApi, MessageToApi, Order,
+        OrderCancelledPayload, OrderPlacedPayload, OrderSide, User,
     },
     services::RedisManager,
 };
@@ -113,7 +113,19 @@ impl Engine {
                     }
                 }
             }
-            MessageFromApi::CancelOrder { data } => {}
+            MessageFromApi::CancelOrder { data } => {
+                self.cancel_order(&data).unwrap();
+
+                info!(order_id = ?data.order_id, "Order cancelled successfully");
+                let redis_manager = RedisManager::instance();
+                let message = MessageToApi::OrderCancelled {
+                    payload: OrderCancelledPayload {
+                        message: Some(String::from("ORDER CANCELLED")),
+                    },
+                };
+
+                let _ = redis_manager.send_to_api(&client_id, &message);
+            }
             MessageFromApi::GetDepth { data } => {}
             MessageFromApi::GetOpenOrders { data } => {}
             MessageFromApi::GetQuote { data } => {}
@@ -121,10 +133,7 @@ impl Engine {
         }
     }
 
-    pub fn create_order(
-        &mut self,
-        payload: &CreateOrderPayload,
-    ) -> Result<(Decimal, Decimal, String)> {
+    fn create_order(&mut self, payload: &CreateOrderPayload) -> Result<(Decimal, Decimal, String)> {
         let order_id = Uuid::new_v4().to_string();
 
         if !self.validate_balance(&payload) {
@@ -179,14 +188,58 @@ impl Engine {
 
         let filled_qty = payload.quantity.checked_sub(remaining_qty).unwrap();
 
-        info!(
-            remaining_qty = ?remaining_qty,
-            filled_qty = ?filled_qty,
-            order_id = ?order_id,
-            "Order created successfully"
-        );
-
         Ok((remaining_qty, filled_qty, order_id))
+    }
+
+    fn cancel_order(&mut self, payload: &CancelOrderPayload) -> Result<()> {
+        let market: Vec<&str> = payload.market.split('_').collect();
+        let base_asset = market[0];
+        let quote_asset = market[1];
+        let mut orderbooks = self.orderbooks.lock().unwrap();
+
+        let orderbook = orderbooks
+            .iter_mut()
+            .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
+            .ok_or_else(|| anyhow::anyhow!("Market not found"))?;
+
+        if let Some(bid_index) = orderbook
+            .bids
+            .iter()
+            .position(|order| order.id == payload.order_id)
+        {
+            let order = &orderbook.bids[bid_index];
+
+            let mut users = self.users.lock().unwrap();
+            if let Some(user) = users.iter_mut().find(|u| u.id == order.user_id) {
+                if let Some(balance) = user.balances.iter_mut().find(|b| b.ticker == quote_asset) {
+                    let locked_amount = order.price * order.quantity;
+                    balance.locked_balance -= locked_amount;
+                }
+            }
+
+            let _ = orderbook.bids.remove(bid_index);
+            return Ok(());
+        }
+
+        if let Some(ask_index) = orderbook
+            .asks
+            .iter()
+            .position(|order| order.id == payload.order_id)
+        {
+            let order = &orderbook.asks[ask_index];
+
+            let mut users = self.users.lock().unwrap();
+            if let Some(user) = users.iter_mut().find(|u| u.id == order.user_id) {
+                if let Some(balance) = user.balances.iter_mut().find(|b| b.ticker == base_asset) {
+                    balance.locked_balance -= order.quantity;
+                }
+            }
+
+            let _ = &orderbook.asks.remove(ask_index);
+            return Ok(());
+        }
+
+        Ok(())
     }
 
     fn validate_balance(&self, payload: &CreateOrderPayload) -> bool {

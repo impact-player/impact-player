@@ -13,7 +13,7 @@ pub struct IncomingMessage {
     pub message: MessageFromApi,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Order {
     pub id: String,
     pub user_id: String,

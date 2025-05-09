@@ -8,6 +8,7 @@ authors.workspace = true
 anyhow = "1.0.98"
 redis.workspace = true
 rust_decimal = "1.37.1"
+rust_decimal_macros = "1.37.1"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tracing.workspace = true

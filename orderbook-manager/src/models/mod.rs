@@ -22,3 +22,9 @@ pub struct Order {
     pub side: OrderSide,
     pub timestamp: i64,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct User {
+    pub id: String,
+    pub balances: Vec<Balance>,
+}

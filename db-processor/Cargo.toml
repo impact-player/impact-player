@@ -1,0 +1,18 @@
+[package]
+name = "db-processor"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow = "1.0.98"
+chrono = "0.4.41"
+redis.workspace = true
+rust_decimal = "1.37.1"
+sqlx = { version = "0.8.5", features = [
+    "postgres",
+    "runtime-tokio-native-tls",
+    "chrono",
+    "time",
+] }
+tokio = { workspace = true, features = ["full"] }

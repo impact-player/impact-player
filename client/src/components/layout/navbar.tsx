@@ -20,7 +20,7 @@ export function Navbar({ activePage = 'home' }: NavbarProps) {
           </Link>
 
           <div className="hidden md:flex items-center gap-5">
-            <NavLink href="/trade" active={activePage === 'trade'}>
+            <NavLink href="/trade/SOLUSDC" active={activePage === 'trade'}>
               Trade
             </NavLink>
             <NavLink href="/rewards" active={activePage === 'rewards'}>

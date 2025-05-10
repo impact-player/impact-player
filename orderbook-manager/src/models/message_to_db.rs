@@ -13,4 +13,5 @@ pub struct TradeData {
     pub ticker: String,
     pub time: DateTime<Utc>,
     pub price: Decimal,
+    pub quantity: Decimal,
 }

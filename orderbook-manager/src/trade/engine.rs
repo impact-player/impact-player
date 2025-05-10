@@ -104,6 +104,7 @@ impl Engine {
                                 ticker: data.market.clone(),
                                 time: Utc::now(),
                                 price: data.price,
+                                quantity: data.quantity,
                             },
                         };
 

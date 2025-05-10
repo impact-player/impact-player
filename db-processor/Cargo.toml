@@ -18,6 +18,7 @@ sqlx = { version = "0.8.5", features = [
     "chrono",
     "time",
 ] }
+time = "0.3.41"
 tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

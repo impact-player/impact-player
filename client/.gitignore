@@ -1,5 +1,4 @@
 # dependencies
-/target
 /node_modules
 /.pnp
 .pnp.*

@@ -1,4 +1,3 @@
-// TradeHeader.tsx
 import Link from 'next/link';
 import { StarIcon } from '@/src/components/icons';
 import Image from 'next/image';

@@ -10,9 +10,9 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        Balance, CancelOrderPayload, CreateOrderPayload, MessageFromApi, MessageToApi,
-        OpenOrdersPayload, Order, OrderCancelledPayload, OrderPlacedPayload, OrderSide, User,
-        UserBalancesPayload,
+        AddTradePayload, Balance, CancelOrderPayload, CreateOrderPayload, MessageFromApi,
+        MessageToApi, OpenOrdersPayload, Order, OrderCancelledPayload, OrderPlacedPayload,
+        OrderSide, TradeData, User, UserBalancesPayload,
     },
     services::RedisManager,
 };
@@ -98,8 +98,18 @@ impl Engine {
                             "side": data.side,
                             "timestamp": Utc::now().timestamp()
                         });
+
+                        let db_info = AddTradePayload {
+                            data: TradeData {
+                                ticker: data.market.clone(),
+                                time: Utc::now(),
+                                price: data.price,
+                            },
+                        };
+
                         let _ = redis_manager
                             .publish_message(&format!("trade@{}", data.market), &trade_info);
+                        let _ = redis_manager.push_message_to_db(&db_info);
                     }
                     Err(e) => {
                         error!("Failed to create order: {}", e);

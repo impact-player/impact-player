@@ -6,9 +6,12 @@ authors.workspace = true
 
 [dependencies]
 anyhow = "1.0.98"
-chrono = "0.4.41"
+chrono = { version = "0.4.41", features = ["serde"] }
+dotenv.workspace = true
 redis.workspace = true
 rust_decimal = "1.37.1"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 sqlx = { version = "0.8.5", features = [
     "postgres",
     "runtime-tokio-native-tls",
@@ -16,3 +19,5 @@ sqlx = { version = "0.8.5", features = [
     "time",
 ] }
 tokio = { workspace = true, features = ["full"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

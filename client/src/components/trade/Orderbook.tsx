@@ -1,105 +1,176 @@
-// OrderBook.tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+
+interface OrderDetails {
+  quantity: string;
+  type_: 'Bid' | 'Ask';
+}
+
+interface DepthResponse {
+  type: string;
+  payload: {
+    orders: {
+      [price: string]: OrderDetails;
+    };
+  };
+}
+
+interface Order {
+  price: number;
+  quantity: number;
+}
+
+interface OrderBookData {
+  bids: Order[];
+  asks: Order[];
+}
+
 export default function OrderBook() {
+  const [orderBook, setOrderBook] = useState<OrderBookData>({
+    bids: [],
+    asks: [],
+  });
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const calculateVolume = (orders: Order[]): number => {
+    return orders.reduce((sum, order) => sum + order.quantity, 0);
+  };
+
+  useEffect(() => {
+    const fetchOrderBook = async (): Promise<void> => {
+      try {
+        setLoading(true);
+        const response = await axios.get<DepthResponse>(
+          'http://localhost:8080/api/v1/depth?market=SOL_USDC'
+        );
+        const data = response.data;
+
+        if (data.type === 'DEPTH' && data.payload && data.payload.orders) {
+          const orders = data.payload.orders;
+          const processedOrders: OrderBookData = {
+            bids: [],
+            asks: [],
+          };
+
+          Object.entries(orders).forEach(([price, details]) => {
+            const entry: Order = {
+              price: parseFloat(price),
+              quantity: parseFloat(details.quantity),
+            };
+
+            if (details.type_ === 'Bid') {
+              processedOrders.bids.push(entry);
+            } else if (details.type_ === 'Ask') {
+              processedOrders.asks.push(entry);
+            }
+          });
+
+          processedOrders.bids.sort((a, b) => b.price - a.price);
+          processedOrders.asks.sort((a, b) => a.price - b.price);
+
+          setOrderBook(processedOrders);
+        }
+      } catch (err) {
+        console.error('Failed to fetch order book:', err);
+        setError('Failed to load order book data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrderBook();
+
+    const interval = setInterval(fetchOrderBook, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const bidVolume = calculateVolume(orderBook.bids);
+  const askVolume = calculateVolume(orderBook.asks);
+  const totalVolume = bidVolume + askVolume;
+  const bidPercentage = totalVolume > 0 ? (bidVolume / totalVolume) * 100 : 50;
+  const askPercentage = totalVolume > 0 ? (askVolume / totalVolume) * 100 : 50;
+
+  if (loading && orderBook.bids.length === 0 && orderBook.asks.length === 0) {
+    return <div className="flex justify-center p-8">Loading order book...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500 p-4">{error}</div>;
+  }
+
   return (
-    <div className="mt-8 border-t border-border/20 pt-4">
+    <div className="flex flex-col flex-grow h-full border-t border-border/20 pt-2">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-bold">OrderBook</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <div className="flex items-center text-xs">
-            <div className="w-3 h-3 bg-green-500/20 mr-1"></div>
+            <div className="w-4 h-4 bg-green-800 mr-2"></div>
             <span>Bids</span>
           </div>
           <div className="flex items-center text-xs">
-            <div className="w-3 h-3 bg-red-500/20 mr-1"></div>
+            <div className="w-4 h-4 bg-red-800 mr-2"></div>
             <span>Asks</span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-6 text-xs text-muted-foreground mb-2">
+      <div className="grid grid-cols-4 text-xs text-muted-foreground mb-2">
         <div>Size</div>
-        <div className="col-span-2 text-center">Bid</div>
-        <div className="col-span-2 text-center">Ask</div>
+        <div className="text-center">Bid</div>
+        <div className="text-center">Ask</div>
         <div className="text-right">Size</div>
       </div>
 
-      <div className="max-h-[400px] overflow-y-auto">
-        {/* Ask Rows */}
-        <div className="grid grid-cols-6 text-xs mb-1 bg-secondary/30">
-          <div>0.00004</div>
-          <div className="col-span-2 text-green-500 text-center">94.254</div>
-          <div className="col-span-2 text-red-500 text-center">94.255</div>
-          <div className="text-right">0.05000</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1">
-          <div>0.11970</div>
-          <div className="col-span-2 text-green-500 text-center">94.252</div>
-          <div className="col-span-2 text-red-500 text-center">94.261</div>
-          <div className="text-right">0.10608</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1 bg-secondary/30">
-          <div>0.05000</div>
-          <div className="col-span-2 text-green-500 text-center">94.241</div>
-          <div className="col-span-2 text-red-500 text-center">94.262</div>
-          <div className="text-right">0.12900</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1">
-          <div>0.10611</div>
-          <div className="col-span-2 text-green-500 text-center">94.222</div>
-          <div className="col-span-2 text-red-500 text-center">94.274</div>
-          <div className="text-right">0.52632</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1 bg-secondary/30">
-          <div>0.52632</div>
-          <div className="col-span-2 text-green-500 text-center">94.217</div>
-          <div className="col-span-2 text-red-500 text-center">94.332</div>
-          <div className="text-right">0.22710</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1">
-          <div>0.23880</div>
-          <div className="col-span-2 text-green-500 text-center">94.199</div>
-          <div className="col-span-2 text-red-500 text-center">94.353</div>
-          <div className="text-right">0.00290</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1 bg-secondary/30">
-          <div>0.45510</div>
-          <div className="col-span-2 text-green-500 text-center">94.084</div>
-          <div className="col-span-2 text-red-500 text-center">94.426</div>
-          <div className="text-right">0.45440</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1">
-          <div>0.00094</div>
-          <div className="col-span-2 text-green-500 text-center">94.005</div>
-          <div className="col-span-2 text-red-500 text-center">94.460</div>
-          <div className="text-right">0.00179</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1 bg-secondary/30">
-          <div>0.00020</div>
-          <div className="col-span-2 text-green-500 text-center">93.854</div>
-          <div className="col-span-2 text-red-500 text-center">94.495</div>
-          <div className="text-right">0.00380</div>
-        </div>
-        <div className="grid grid-cols-6 text-xs mb-1">
-          <div>0.00140</div>
-          <div className="col-span-2 text-green-500 text-center">93.816</div>
-          <div className="col-span-2 text-red-500 text-center">94.636</div>
-          <div className="text-right">0.00471</div>
-        </div>
+      <div className="flex-grow overflow-y-auto">
+        {Array.from({
+          length: Math.max(
+            10,
+            Math.max(orderBook.bids.length, orderBook.asks.length)
+          ),
+        }).map((_, index) => {
+          const bid = orderBook.bids[index] || { price: null, quantity: null };
+          const ask = orderBook.asks[index] || { price: null, quantity: null };
+
+          return (
+            <div
+              key={index}
+              className={`grid grid-cols-4 text-xs mb-1 ${
+                index % 2 === 0 ? 'bg-secondary/30' : ''
+              }`}
+            >
+              <div>{bid.quantity !== null ? bid.quantity.toFixed(5) : '-'}</div>
+              <div className="text-green-500 text-center">
+                {bid.price !== null ? bid.price.toFixed(3) : '-'}
+              </div>
+              <div className="text-red-500 text-center">
+                {ask.price !== null ? ask.price.toFixed(3) : '-'}
+              </div>
+              <div className="text-right">
+                {ask.quantity !== null ? ask.quantity.toFixed(5) : '-'}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Percentage Bar */}
-      <div className="flex w-full mt-4 rounded-sm overflow-hidden">
-        <div
-          className="bg-green-900/50 text-xs text-center py-1"
-          style={{ width: '61%' }}
-        >
-          61.0%
-        </div>
-        <div
-          className="bg-red-900/50 text-xs text-center py-1"
-          style={{ width: '39%' }}
-        >
-          39.0%
+      {/* Percentage Bar - Always at the bottom */}
+      <div className="w-full rounded-sm overflow-hidden">
+        <div className="flex">
+          <div
+            className="bg-green-800 text-xs text-center py-1 text-white"
+            style={{ width: `${bidPercentage}%` }}
+          >
+            {bidPercentage.toFixed(1)}%
+          </div>
+          <div
+            className="bg-red-800 text-xs text-center py-1 text-white"
+            style={{ width: `${askPercentage}%` }}
+          >
+            {askPercentage.toFixed(1)}%
+          </div>
         </div>
       </div>
     </div>

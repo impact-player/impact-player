@@ -19,20 +19,18 @@ export default async function TradingPage({
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* Trading Header */}
       <TradeHeader baseCurrency={baseCurrency} quoteCurrency={quoteCurrency} />
 
       <div className="flex-1 flex flex-col md:flex-row">
-        {/* Left Section - Chart and Bottom Trading Table */}
-        <div className="w-full md:w-3/4 border-r border-border/20 flex flex-col">
+        <div className="w-full md:w-3/4 border-r border-border/20 flex flex-col p-4">
           <ChartArea />
           <BottomTable />
         </div>
 
-        {/* Right Section - Trading Form and OrderBook */}
-        <div className="w-full md:w-1/4 border-t md:border-t-0 border-border/20">
-          <div className="p-4">
+        <div className="w-full md:w-2/6 border-t md:border-t-0 border-border/20 flex flex-col h-full">
+          <div className="flex flex-col flex-grow h-screen overflow-hidden p-4">
             <SwapUI baseCurrency={baseCurrency} quoteCurrency={quoteCurrency} />
+
             <OrderBook />
           </div>
         </div>

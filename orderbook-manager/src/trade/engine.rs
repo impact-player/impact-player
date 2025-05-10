@@ -45,7 +45,7 @@ impl Engine {
         });
 
         initial_users.push(User {
-            id: "1".to_string(),
+            id: "2".to_string(),
             balances: vec![
                 Balance {
                     ticker: "USDC".to_string(),

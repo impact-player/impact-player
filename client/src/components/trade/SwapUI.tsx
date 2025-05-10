@@ -1,4 +1,6 @@
-// SwapUI.tsx
+'use client';
+
+import { useState } from 'react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { ArrowDownIcon } from '@/src/components/icons';
@@ -8,59 +10,106 @@ interface SwapUIProps {
   quoteCurrency: string;
 }
 
+type OrderType = 'BUY' | 'SELL';
+type OrderMode = 'MKT' | 'LIMIT';
+
 export default function SwapUI({ baseCurrency, quoteCurrency }: SwapUIProps) {
+  // State for tracking active tabs
+  const [orderType, setOrderType] = useState<OrderType>('BUY');
+  const [orderMode, setOrderMode] = useState<OrderMode>('MKT');
+
+  // Handler functions
+  const handleOrderTypeChange = (type: OrderType) => {
+    setOrderType(type);
+  };
+
+  const handleOrderModeChange = (mode: OrderMode) => {
+    setOrderMode(mode);
+  };
+
   return (
     <>
       <div className="flex mb-4">
-        <Button className="flex-1 bg-card hover:bg-card/90 text-green-500 rounded-l-xl rounded-r-none border border-border">
+        <Button
+          className={`flex-1 ${
+            orderType === 'BUY'
+              ? 'bg-white text-green-500'
+              : 'bg-card hover:bg-card/90 text-green-500'
+          } rounded-l-xl rounded-r-none border border-border`}
+          onClick={() => handleOrderTypeChange('BUY')}
+        >
           BUY
         </Button>
-        <Button className="flex-1 bg-card hover:bg-card/90 text-red-500 rounded-r-xl rounded-l-none border border-l-0 border-border">
+        <Button
+          className={`flex-1 ${
+            orderType === 'SELL'
+              ? 'bg-white text-red-500'
+              : 'bg-card hover:bg-card/90 text-red-500'
+          } rounded-r-xl rounded-l-none border border-l-0 border-border`}
+          onClick={() => handleOrderTypeChange('SELL')}
+        >
           SELL
         </Button>
       </div>
 
       <div className="flex mb-4">
-        <Button className="flex-1 bg-card hover:bg-card/90 text-foreground rounded-l-xl rounded-r-none border border-border">
+        <Button
+          className={`flex-1 ${
+            orderMode === 'MKT'
+              ? 'bg-white text-foreground'
+              : 'bg-card hover:bg-card/90 text-foreground'
+          } rounded-l-xl rounded-r-none border border-border`}
+          onClick={() => handleOrderModeChange('MKT')}
+        >
           MKT
         </Button>
-        <Button className="flex-1 bg-white hover:bg-white/90 text-background rounded-r-xl rounded-l-none border border-l-0 border-border">
+        <Button
+          className={`flex-1 ${
+            orderMode === 'LIMIT'
+              ? 'bg-white text-background'
+              : 'bg-card hover:bg-card/90 text-foreground'
+          } rounded-r-xl rounded-l-none border border-l-0 border-border`}
+          onClick={() => handleOrderModeChange('LIMIT')}
+        >
           LIMIT
         </Button>
       </div>
 
-      <div className="mb-4">
-        <div className="flex justify-between items-center text-sm mb-2">
-          <span>Limit Price:</span>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-amber-500 hover:text-amber-600 px-2 h-6"
-            >
-              BID
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-muted-foreground hover:text-foreground px-2 h-6"
-            >
-              MID
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-muted-foreground hover:text-foreground px-2 h-6"
-            >
-              ASK
-            </Button>
+      {/* Only show Limit Price input when LIMIT mode is selected */}
+      {orderMode === 'LIMIT' && (
+        <div className="mb-4">
+          <div className="flex justify-between items-center text-sm mb-2">
+            <span>Limit Price:</span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-amber-500 hover:text-amber-600 px-2 h-6"
+              >
+                BID
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground px-2 h-6"
+              >
+                MID
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground px-2 h-6"
+              >
+                ASK
+              </Button>
+            </div>
+            <div className="bg-secondary text-xs rounded-md px-2 py-1">
+              {quoteCurrency}
+            </div>
           </div>
-          <div className="bg-secondary text-xs rounded-md px-2 py-1">
-            {quoteCurrency}
-          </div>
+          <Input className="bg-card border-border" placeholder="enter price" />
         </div>
-        <Input className="bg-card border-border" placeholder="enter price" />
-      </div>
+      )}
 
       <div className="mb-4">
         <div className="flex justify-between items-center text-sm mb-2">
@@ -93,14 +142,6 @@ export default function SwapUI({ baseCurrency, quoteCurrency }: SwapUIProps) {
           </Button>
         </div>
       </div>
-
-      <Button className="w-full mb-4 py-6 bg-card hover:bg-card/90 text-muted-foreground border border-border">
-        zero balance
-      </Button>
-
-      <Button className="w-full mb-4 py-6 bg-card hover:bg-card/90 text-red-500 border border-border">
-        MAX
-      </Button>
 
       <div className="flex justify-between items-center text-sm mb-2">
         <span>Execution</span>

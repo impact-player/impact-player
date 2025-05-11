@@ -7,7 +7,7 @@ use axum::{
     Router,
 };
 use dotenv::dotenv;
-use routes::{cancel_order, create_order, get_balances, get_depth, get_quote, open_orders};
+use routes::{cancel_order, create_order, get_balances, get_depth, get_klines, get_quote, open_orders};
 use state::AppState;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{error, info};
@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
     dotenv().ok();
 
-    let app_state = Arc::new(AppState::new());
+    let app_state = Arc::new(AppState::new().await);
 
     let app = Router::new()
         .nest(
@@ -38,7 +38,9 @@ async fn main() -> Result<()> {
                         .route("/quote", post(get_quote)),
                 )
                 .nest("/depth", Router::new().route("/", get(get_depth)))
+                .route("/klines", get(get_klines))
                 .nest("/user", Router::new().route("/balances", get(get_balances))),
+                
         )
         .layer(TraceLayer::new_for_http())
         .layer(

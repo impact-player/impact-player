@@ -42,6 +42,18 @@ pub struct GetDepthPayload {
     pub market: String,
 }
 
+#[derive(Deserialize)]
+pub struct GetKlinePayload {
+    pub market: String,
+    pub interval: String,
+
+    #[serde(rename = "startTime")]
+    pub start_time: String,
+
+    #[serde(rename = "endTime")]
+    pub end_time: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetQuotePayload {
     pub market: String,

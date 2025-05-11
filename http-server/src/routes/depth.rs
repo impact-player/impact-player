@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use axum::{
-    debug_handler,
     extract::{Query, State},
     Json,
 };

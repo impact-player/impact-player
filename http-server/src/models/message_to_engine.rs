@@ -42,6 +42,11 @@ pub struct GetDepthPayload {
     pub market: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetTradesPayload {
+    pub market: String,
+}
+
 #[derive(Deserialize)]
 pub struct GetKlinePayload {
     pub market: String,

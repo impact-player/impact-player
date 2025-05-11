@@ -9,3 +9,6 @@ pub use user::*;
 
 pub mod klines;
 pub use klines::*;
+
+pub mod trades;
+pub use trades::*;

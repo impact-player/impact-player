@@ -9,8 +9,6 @@ use sqlx::Row;
 use std::sync::Arc;
 use time::OffsetDateTime;
 
-
-
 #[debug_handler]
 pub async fn get_klines(
     State(state): State<Arc<AppState>>,
@@ -83,17 +81,34 @@ pub async fn get_klines(
                 .map(|r| {
                     let bucket: OffsetDateTime = r.get("bucket");
                     let ts_ms = bucket.unix_timestamp() * 1_000 + bucket.millisecond() as i64;
+                    
+                    // For interval-based data, calculate the start time based on the interval
+                    let start_ts_ms = match params.interval.as_str() {
+                        "1m" => ts_ms - 60 * 1000,         // 1 minute in ms
+                        "1h" => ts_ms - 60 * 60 * 1000,    // 1 hour in ms
+                        "1d" => ts_ms - 24 * 60 * 60 * 1000, // 1 day in ms
+                        "1w" => ts_ms - 7 * 24 * 60 * 60 * 1000, // 1 week in ms
+                        _ => ts_ms - 60 * 1000,           // default to 1 minute
+                    };
 
+                    let open: f64 = r.get::<f64, _>("open");
+                    let high: f64 = r.get::<f64, _>("high");
+                    let low: f64 = r.get::<f64, _>("low");
+                    let close: f64 = r.get::<f64, _>("close");
                     let volume: f64 = r.get::<Option<f64>, _>("volume").unwrap_or(0.0);
-
-                    json!([
-                        ts_ms,
-                        r.get::<f64, _>("open"),
-                        r.get::<f64, _>("high"),
-                        r.get::<f64, _>("low"),
-                        r.get::<f64, _>("close"),
-                        volume,
-                    ])
+                    
+                    // Return in the format expected by the client
+                    json!({
+                        "open": open.to_string(),
+                        "high": high.to_string(),
+                        "low": low.to_string(),
+                        "close": close.to_string(),
+                        "volume": volume.to_string(),
+                        "quoteVolume": "0", // Default since we don't have this data
+                        "trades": "0",      // Default since we don't have this data
+                        "start": start_ts_ms.to_string(),
+                        "end": ts_ms.to_string()
+                    })
                 })
                 .collect();
 

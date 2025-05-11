@@ -14,11 +14,9 @@ type OrderType = 'BUY' | 'SELL';
 type OrderMode = 'MKT' | 'LIMIT';
 
 export default function SwapUI({ baseCurrency, quoteCurrency }: SwapUIProps) {
-  // State for tracking active tabs
   const [orderType, setOrderType] = useState<OrderType>('BUY');
   const [orderMode, setOrderMode] = useState<OrderMode>('MKT');
 
-  // Handler functions
   const handleOrderTypeChange = (type: OrderType) => {
     setOrderType(type);
   };
@@ -75,7 +73,6 @@ export default function SwapUI({ baseCurrency, quoteCurrency }: SwapUIProps) {
         </Button>
       </div>
 
-      {/* Only show Limit Price input when LIMIT mode is selected */}
       {orderMode === 'LIMIT' && (
         <div className="mb-4">
           <div className="flex justify-between items-center text-sm mb-2">

@@ -7,10 +7,7 @@ use axum::{
 use serde_json::{json, Value};
 use sqlx::Row;
 
-use crate::{
-    models::GetTradesPayload,
-    state::AppState,
-};
+use crate::{models::GetTradesPayload, state::AppState};
 
 pub async fn get_trades(
     State(state): State<Arc<AppState>>,
@@ -22,9 +19,7 @@ pub async fn get_trades(
         ORDER BY time ASC
     "#;
 
-    let rows = sqlx::query(sql)
-        .fetch_all(&*state.db_pool)
-        .await;
+    let rows = sqlx::query(sql).fetch_all(&*state.db_pool).await;
 
     match rows {
         Ok(records) => {

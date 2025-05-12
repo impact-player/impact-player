@@ -42,13 +42,8 @@ pub struct OpenOrdersPayload {
 // Depth Payload
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DepthPayload {
-    pub orders: HashMap<Decimal, OrderDetails>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OrderDetails {
-    pub type_: OrderSide,
-    pub quantity: Decimal,
+    pub bids: Vec<[String; 2]>,
+    pub asks: Vec<[String; 2]>,
 }
 
 // User Balances

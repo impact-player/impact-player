@@ -81,14 +81,14 @@ pub async fn get_klines(
                 .map(|r| {
                     let bucket: OffsetDateTime = r.get("bucket");
                     let ts_ms = bucket.unix_timestamp() * 1_000 + bucket.millisecond() as i64;
-                    
+
                     // For interval-based data, calculate the start time based on the interval
                     let start_ts_ms = match params.interval.as_str() {
-                        "1m" => ts_ms - 60 * 1000,         // 1 minute in ms
-                        "1h" => ts_ms - 60 * 60 * 1000,    // 1 hour in ms
-                        "1d" => ts_ms - 24 * 60 * 60 * 1000, // 1 day in ms
+                        "1m" => ts_ms - 60 * 1000,               // 1 minute in ms
+                        "1h" => ts_ms - 60 * 60 * 1000,          // 1 hour in ms
+                        "1d" => ts_ms - 24 * 60 * 60 * 1000,     // 1 day in ms
                         "1w" => ts_ms - 7 * 24 * 60 * 60 * 1000, // 1 week in ms
-                        _ => ts_ms - 60 * 1000,           // default to 1 minute
+                        _ => ts_ms - 60 * 1000,                  // default to 1 minute
                     };
 
                     let open: f64 = r.get::<f64, _>("open");
@@ -96,7 +96,7 @@ pub async fn get_klines(
                     let low: f64 = r.get::<f64, _>("low");
                     let close: f64 = r.get::<f64, _>("close");
                     let volume: f64 = r.get::<Option<f64>, _>("volume").unwrap_or(0.0);
-                    
+
                     // Return in the format expected by the client
                     json!({
                         "open": open.to_string(),

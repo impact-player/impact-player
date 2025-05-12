@@ -6,9 +6,7 @@ use std::{
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
-use crate::models::{
-    CreateOrderPayload, DepthPayload, Order, OrderDetails, OrderSide, QuotePayload, User,
-};
+use crate::models::{CreateOrderPayload, DepthPayload, Order, OrderSide, QuotePayload, User};
 
 pub struct Orderbook {
     pub bids: Vec<Order>,
@@ -111,33 +109,40 @@ impl Orderbook {
     }
 
     pub fn get_depth(&self) -> DepthPayload {
-        let mut depth: HashMap<Decimal, OrderDetails> = HashMap::new();
+        let mut bids: Vec<[String; 2]> = Vec::new();
+        let mut asks: Vec<[String; 2]> = Vec::new();
 
+        let mut bid_map: HashMap<Decimal, Decimal> = HashMap::new();
         for bid in &self.bids {
-            depth
-                .entry(bid.price)
-                .and_modify(|details| {
-                    details.quantity += bid.quantity;
-                })
-                .or_insert(OrderDetails {
-                    type_: OrderSide::Bid,
-                    quantity: bid.quantity,
-                });
+            *bid_map.entry(bid.price).or_insert(Decimal::ZERO) += bid.quantity;
         }
 
+        for (price, quantity) in bid_map {
+            bids.push([price.to_string(), quantity.to_string()]);
+        }
+
+        let mut ask_map: HashMap<Decimal, Decimal> = HashMap::new();
         for ask in &self.asks {
-            depth
-                .entry(ask.price)
-                .and_modify(|details| {
-                    details.quantity += ask.quantity;
-                })
-                .or_insert(OrderDetails {
-                    type_: OrderSide::Ask,
-                    quantity: ask.quantity,
-                });
+            *ask_map.entry(ask.price).or_insert(Decimal::ZERO) += ask.quantity;
         }
 
-        DepthPayload { orders: depth }
+        for (price, quantity) in ask_map {
+            asks.push([price.to_string(), quantity.to_string()]);
+        }
+
+        bids.sort_by(|a, b| {
+            let price_a: Decimal = a[0].parse().unwrap_or(Decimal::ZERO);
+            let price_b: Decimal = b[0].parse().unwrap_or(Decimal::ZERO);
+            price_b.cmp(&price_a)
+        });
+
+        asks.sort_by(|a, b| {
+            let price_a: Decimal = a[0].parse().unwrap_or(Decimal::ZERO);
+            let price_b: Decimal = b[0].parse().unwrap_or(Decimal::ZERO);
+            price_a.cmp(&price_b)
+        });
+
+        DepthPayload { bids, asks }
     }
 
     pub fn get_quote_detail(&self, quantity: Decimal, side: OrderSide) -> QuotePayload {

@@ -1,19 +1,22 @@
 export const BidTable = ({ bids }: { bids: [string, string][] }) => {
-  let currentTotal = 0;
+  // Assuming bids are already sorted (highest price first for bids)
   const relevantBids = bids.slice(0, 30);
-  console.log(relevantBids);
+  let currentTotal = 0;
 
-  const bidsWithTotal: [string, string, number][] = relevantBids.map(
-    ([price, quantity]) => [price, quantity, (currentTotal += Number(quantity))]
-  );
-  const maxTotal = relevantBids.reduce(
-    (acc, [_, quantity]) => acc + Number(quantity),
-    0
-  );
+  let bidsWithTotal: [string, string, number][] = [];
+
+  // For bids, we process in the existing order if already sorted
+  for (let i = 0; i < relevantBids.length; i++) {
+    const [price, quantity] = relevantBids[i];
+    currentTotal += Number(quantity);
+    bidsWithTotal.push([price, quantity, currentTotal]);
+  }
+
+  const maxTotal = currentTotal; // Use the final accumulated total
 
   return (
     <div>
-      {bidsWithTotal?.map(([price, quantity, total]) => (
+      {bidsWithTotal.map(([price, quantity, total]) => (
         <Bid
           maxTotal={maxTotal}
           total={total}

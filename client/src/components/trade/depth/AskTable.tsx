@@ -1,20 +1,18 @@
 export const AskTable = ({ asks }: { asks: [string, string][] }) => {
-  let currentTotal = 0;
+  // Assuming asks are already sorted (lowest price first for asks)
   const relevantAsks = asks.slice(0, 30);
-
-  relevantAsks.reverse();
+  let currentTotal = 0;
 
   let asksWithTotal: [string, string, number][] = [];
-  for (let i = relevantAsks.length - 1; i >= 0; i--) {
-    const [price, quantity] = relevantAsks[i];
-    asksWithTotal.push([price, quantity, (currentTotal += Number(quantity))]);
-  }
-  const maxTotal = relevantAsks.reduce(
-    (acc, [_, quantity]) => acc + Number(quantity),
-    0
-  );
 
-  asksWithTotal.reverse();
+  // Process asks in the order they come in if already sorted
+  for (let i = 0; i < relevantAsks.length; i++) {
+    const [price, quantity] = relevantAsks[i];
+    currentTotal += Number(quantity);
+    asksWithTotal.push([price, quantity, currentTotal]);
+  }
+
+  const maxTotal = currentTotal; // Use the final accumulated total
 
   return (
     <div>
@@ -60,11 +58,11 @@ function Ask({
         style={{
           position: 'absolute',
           top: 0,
-          left: 0,
+          right: 0,
           width: `${(100 * total) / maxTotal}%`,
           height: '100%',
           background: 'rgba(228, 75, 68, 0.325)',
-          transition: 'width 0.3s ease in out',
+          transition: 'width 0.3s ease-in-out',
         }}
       ></div>
       <div className="flex justify-between text-sm w-full px-2">

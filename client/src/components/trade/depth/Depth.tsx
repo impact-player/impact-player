@@ -11,7 +11,7 @@ export default function Depth({ market }: { market: string }) {
 
   useEffect(() => {
     getDepth(market).then((d) => {
-      setBids(d.payload.bids.reverse());
+      setBids(d.payload.bids);
       setAsks(d.payload.asks);
     });
   }, [market]);

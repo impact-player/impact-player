@@ -34,9 +34,7 @@ export default function ChartArea({ market }: { market: string }) {
       [
         ...klineData?.map((x) => ({
           close: parseFloat(x.close),
-          high: parseFloat(x.high),
-          low: parseFloat(x.low),
-          open: parseFloat(x.open),
+          volume: parseFloat(x.volume),
           timestamp: new Date(parseInt(x.end)).getTime(),
         })),
       ].sort((x, y) => (x.timestamp < y.timestamp ? -1 : 1)) || [],

@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { DepthResponse, KLine, TradesResponse } from './types';
+import { Depth, KLine, TradesResponse } from './types';
 
 const BASE_URL = 'http://localhost:8080/api/v1';
 
-export async function getDepth(market: string): Promise<DepthResponse> {
+export async function getDepth(market: string): Promise<Depth> {
   const response = await axios.get(`${BASE_URL}/depth?market=${market}`);
   return response.data;
 }
@@ -25,8 +25,7 @@ export async function getKlines(
     `${BASE_URL}/klines?market=${market}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`
   );
 
-  // Extract the data array from the response
-  const data: KLine[] = response.data.data; // Access the data property
+  const data: KLine[] = response.data.data;
   console.log('internal data: ', response.data);
   return data.sort((x, y) => (Number(x.end) < Number(y.end) ? -1 : 1));
 }

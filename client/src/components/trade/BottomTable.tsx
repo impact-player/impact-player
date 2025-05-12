@@ -104,7 +104,6 @@ export default function BottomTable() {
                     <tr className="text-xs text-muted-foreground border-b border-border/10">
                       <th className="text-left py-2">Price</th>
                       <th className="text-left py-2">Quantity</th>
-                      <th className="text-left py-2">Time</th>
                       <th className="text-left py-2">Currency</th>
                     </tr>
                   </thead>
@@ -116,11 +115,11 @@ export default function BottomTable() {
                     {trades.map((trade, index) => (
                       <tr key={index} className="border-t border-border/10">
                         <td className="py-2 pr-8">${trade.price.toFixed(2)}</td>
-                        <td className="py-2 pr-8">
+                        <td className="py-2 pr-18">
                           {trade.quantity.toFixed(2)}
                         </td>
-                        <td className="py-2 pr-8">{formatDate(trade.time)}</td>
-                        <td className="py-2">{trade.currency_code}</td>
+                        <td className="py-2 pr-18">{trade.currency_code}</td>
+                        {/* <td className="py-2 pr-8">{formatDate(trade.time)}</td> */}
                       </tr>
                     ))}
                   </tbody>

@@ -10,17 +10,10 @@ export interface KLine {
   volume: string;
 }
 
-interface OrderDetails {
-  quantity: string;
-  type_: 'Bid' | 'Ask';
-}
-
-export interface DepthResponse {
-  type: string;
+export interface Depth {
   payload: {
-    orders: {
-      [price: string]: OrderDetails;
-    };
+    bids: [string, string][];
+    asks: [string, string][];
   };
 }
 

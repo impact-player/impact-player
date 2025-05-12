@@ -7,10 +7,12 @@ import { KLine } from '@/src/utils/types';
 import { getKlines } from '@/src/utils/httpClient';
 
 export default function ChartArea({ market }: { market: string }) {
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartManagerRef = useRef<ChartManager>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartManagerRef = useRef<ChartManager | null>(null);
 
   const init = async () => {
+    if (!chartContainerRef.current) return;
+
     let klineData: KLine[] = [];
     try {
       klineData = await getKlines(
@@ -23,44 +25,58 @@ export default function ChartArea({ market }: { market: string }) {
       console.error('Error fetching kline data:', error);
     }
 
-    console.log('klines data: ', klineData);
-    if (chartRef) {
-      if (chartManagerRef.current) {
-        chartManagerRef.current.destroy();
-      }
-      const chartManager = new ChartManager(
-        chartRef.current,
-        [
-          ...klineData?.map((x) => ({
-            close: parseFloat(x.close),
-            high: parseFloat(x.high),
-            low: parseFloat(x.low),
-            open: parseFloat(x.open),
-            timestamp: new Date(parseInt(x.end)).getTime(),
-          })),
-        ].sort((x, y) => (x.timestamp < y.timestamp ? -1 : 1)) || [],
-        {
-          background: '#0e0f14',
-          color: 'white',
-        }
-      );
-      //@ts-ignore
-      chartManagerRef.current = chartManager;
+    if (chartManagerRef.current) {
+      chartManagerRef.current.destroy();
     }
+
+    const chartManager = new ChartManager(
+      chartContainerRef.current,
+      [
+        ...klineData?.map((x) => ({
+          close: parseFloat(x.close),
+          high: parseFloat(x.high),
+          low: parseFloat(x.low),
+          open: parseFloat(x.open),
+          timestamp: new Date(parseInt(x.end)).getTime(),
+        })),
+      ].sort((x, y) => (x.timestamp < y.timestamp ? -1 : 1)) || [],
+      {
+        background: '#0e0f14',
+        color: 'white',
+      }
+    );
+
+    chartManagerRef.current = chartManager;
   };
 
   useEffect(() => {
     init();
-  }, [market, chartRef]);
+
+    const handleResize = () => {
+      if (chartManagerRef.current && chartContainerRef.current) {
+        chartManagerRef.current.destroy();
+        init();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (chartManagerRef.current) {
+        chartManagerRef.current.destroy();
+      }
+    };
+  }, [market]);
+
   return (
     <>
       <ChartControl />
-
-      <div className="flex-1 bg-card p-4 flex items-center justify-center">
+      <div className="flex-1 bg-card flex items-center justify-center">
         <div
-          ref={chartRef}
-          className="text-muted-foreground"
-          style={{ height: '520px', width: '100%', marginTop: 4 }}
+          ref={chartContainerRef}
+          className="text-muted-foreground w-full h-full"
+          style={{ minHeight: '300px' }}
         ></div>
       </div>
     </>

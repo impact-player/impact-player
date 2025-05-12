@@ -1,9 +1,5 @@
-use std::collections::HashMap;
-
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-
-use super::{Order, OrderSide};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -12,8 +8,10 @@ pub enum MessageToApi {
     OrderPlaced { payload: OrderPlacedPayload },
     #[serde(rename = "ORDER_CANCELLED")]
     OrderCancelled { payload: OrderCancelledPayload },
-    #[serde(rename = "OPEN_ORDER")]
-    OpenOrder { payload: OpenOrdersPayload },
+    #[serde(rename = "OPEN_ORDERS")]
+    OpenOrders {
+        payload: GetOpenOrdersPayload,
+    },
     #[serde(rename = "DEPTH")]
     Depth { payload: DepthPayload },
     #[serde(rename = "USER_BALANCES")]
@@ -34,9 +32,11 @@ pub struct OrderCancelledPayload {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenOrdersPayload {
-    pub open_orders: Vec<Order>,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetOpenOrdersPayload {
+    #[serde(rename = "userId")]
+    pub user_id: String,
+    pub market: String,
 }
 
 

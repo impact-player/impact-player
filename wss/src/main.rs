@@ -5,7 +5,7 @@ use axum::{
     routing::get,
     Router,
 };
-use futures::{stream::StreamExt, sink::SinkExt};
+use futures::{sink::SinkExt, stream::StreamExt};
 use redis::Client;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
@@ -77,24 +77,29 @@ async fn ws_handler(ws: WebSocketUpgrade, State(state): State<SharedState>) -> i
 async fn handle_socket(socket: WebSocket, state: SharedState) {
     let (tx, mut rx) = socket.split();
     let tx = Arc::new(Mutex::new(tx));
-    
+
     let mut subscribed_rooms = Vec::new();
-    
+
     while let Some(Ok(msg)) = rx.next().await {
         if let Message::Text(text) = msg {
             match serde_json::from_str(&text) {
-                Ok(request) => {
-                    match request {
-                        ClientRequest::Subscribe { payload } => {
-                            let room = payload.room.clone();
-                            subscribe_client(tx.clone(), state.clone(), payload.room.clone(), &mut subscribed_rooms).await;
-                            println!("Client subscribed to room: {}", room);
-                        },
-                        ClientRequest::Unsubscribe { payload } => {
-                            let room = payload.room.clone();
-                            unsubscribe_client(state.clone(), payload.room, &mut subscribed_rooms).await;
-                            println!("Client unsubscribed from room: {}", room);
-                        }
+                Ok(request) => match request {
+                    ClientRequest::Subscribe { payload } => {
+                        let room = payload.room.clone();
+                        subscribe_client(
+                            tx.clone(),
+                            state.clone(),
+                            payload.room.clone(),
+                            &mut subscribed_rooms,
+                        )
+                        .await;
+                        println!("Client subscribed to room: {}", room);
+                    }
+                    ClientRequest::Unsubscribe { payload } => {
+                        let room = payload.room.clone();
+                        unsubscribe_client(state.clone(), payload.room, &mut subscribed_rooms)
+                            .await;
+                        println!("Client unsubscribed from room: {}", room);
                     }
                 },
                 Err(e) => {
@@ -105,17 +110,17 @@ async fn handle_socket(socket: WebSocket, state: SharedState) {
             break;
         }
     }
-    
+
     for room in subscribed_rooms {
         unsubscribe_from_room(state.clone(), room).await;
     }
 }
 
 async fn subscribe_client(
-    tx: Arc<Mutex<futures::stream::SplitSink<WebSocket, Message>>>, 
-    state: SharedState, 
+    tx: Arc<Mutex<futures::stream::SplitSink<WebSocket, Message>>>,
+    state: SharedState,
     room: String,
-    subscribed_rooms: &mut Vec<String>
+    subscribed_rooms: &mut Vec<String>,
 ) {
     let sender = {
         let mut channels = state.channels.lock().await;
@@ -124,10 +129,13 @@ async fn subscribe_client(
             info.sender.clone()
         } else {
             let (s, _) = broadcast::channel(100);
-            channels.insert(room.clone(), ChannelInfo {
-                sender: s.clone(),
-                subscribers: 1,
-            });
+            channels.insert(
+                room.clone(),
+                ChannelInfo {
+                    sender: s.clone(),
+                    subscribers: 1,
+                },
+            );
 
             let client = state.redis_client.clone();
             start_redis_listener(room.clone(), client, s.clone());
@@ -137,7 +145,7 @@ async fn subscribe_client(
     };
 
     let mut rx = sender.subscribe();
-    
+
     if !subscribed_rooms.contains(&room) {
         subscribed_rooms.push(room.clone());
     }
@@ -149,7 +157,7 @@ async fn subscribe_client(
                 room: room_clone.clone(),
                 data: payload,
             };
-            
+
             let mut tx_guard = tx.lock().await;
             if tx_guard
                 .send(Message::Text(serde_json::to_string(&msg).unwrap().into()))
@@ -166,13 +174,13 @@ async fn unsubscribe_client(state: SharedState, room: String, subscribed_rooms: 
     if let Some(pos) = subscribed_rooms.iter().position(|r| r == &room) {
         subscribed_rooms.remove(pos);
     }
-    
+
     unsubscribe_from_room(state, room).await;
 }
 
 async fn unsubscribe_from_room(state: SharedState, room: String) {
     let mut should_cleanup = false;
-    
+
     {
         let mut channels = state.channels.lock().await;
         if let Some(info) = channels.get_mut(&room) {
@@ -218,12 +226,11 @@ fn start_redis_listener(room: String, client: Client, sender: broadcast::Sender<
 
             match msg.get_payload::<String>() {
                 Ok(payload) => {
-                    
                     if sender.receiver_count() == 0 {
                         println!("No subscribers left for {}, stopping listener", room);
                         break;
                     }
-                    
+
                     let _ = sender.send(payload);
                 }
                 Err(err) => {
@@ -231,7 +238,7 @@ fn start_redis_listener(room: String, client: Client, sender: broadcast::Sender<
                 }
             }
         }
-        
+
         if let Err(err) = pubsub.unsubscribe(&room) {
             eprintln!("Redis unsubscribe error for {}: {}", room, err);
         } else {

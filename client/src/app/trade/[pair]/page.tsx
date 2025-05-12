@@ -1,6 +1,6 @@
 import BottomTable from '@/src/components/trade/BottomTable';
 import ChartArea from '@/src/components/trade/chart/ChartArea';
-import OrderBook from '@/src/components/trade/Orderbook';
+import Depth from '@/src/components/trade/depth/Depth';
 import SwapUI from '@/src/components/trade/SwapUI';
 import TradeHeader from '@/src/components/trade/TradeHeader';
 
@@ -28,7 +28,7 @@ export default async function TradingPage({
           <div className="flex flex-col flex-grow h-[calc(100vh-100px)] overflow-hidden p-4">
             <SwapUI baseCurrency={baseCurrency} quoteCurrency={quoteCurrency} />
 
-            <OrderBook market={pair} />
+            <Depth market={pair} />
           </div>
         </div>
       </div>

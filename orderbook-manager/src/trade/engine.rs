@@ -10,9 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        AddTradePayload, Balance, CancelOrderPayload, CreateOrderPayload, MessageFromApi,
-        MessageToApi, OpenOrdersPayload, Order, OrderCancelledPayload, OrderPlacedPayload,
-        OrderSide, TradeData, User, UserBalancesPayload,
+        message_to_api::GetOpenOrdersPayload, AddTradePayload, Balance, CancelOrderPayload, CreateOrderPayload, MessageFromApi, MessageToApi, Order, OrderCancelledPayload, OrderPlacedPayload, OrderSide, TradeData, User, UserBalancesPayload
     },
     services::RedisManager,
 };
@@ -183,9 +181,10 @@ impl Engine {
                 }
 
                 let redis_manager = RedisManager::instance();
-                let message = MessageToApi::OpenOrder {
-                    payload: OpenOrdersPayload { open_orders },
-                };
+                let message = MessageToApi::OpenOrders { payload: GetOpenOrdersPayload {
+                        market: data.market,
+                        user_id: data.user_id
+                    } };
 
                 let _ = redis_manager.send_to_api(&client_id, &message);
             }

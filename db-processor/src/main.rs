@@ -62,9 +62,17 @@ async fn main() -> Result<()> {
 }
 
 async fn refresh_views(pool: &PgPool) -> Result<(), sqlx::Error> {
-    sqlx::query!("REFRESH MATERIALIZED VIEW klines_1m").execute(pool).await?;
-    sqlx::query!("REFRESH MATERIALIZED VIEW klines_1h").execute(pool).await?;
-    sqlx::query!("REFRESH MATERIALIZED VIEW klines_1d").execute(pool).await?;
-    sqlx::query!("REFRESH MATERIALIZED VIEW klines_1w").execute(pool).await?;
+    sqlx::query!("REFRESH MATERIALIZED VIEW klines_1m")
+        .execute(pool)
+        .await?;
+    sqlx::query!("REFRESH MATERIALIZED VIEW klines_1h")
+        .execute(pool)
+        .await?;
+    sqlx::query!("REFRESH MATERIALIZED VIEW klines_1d")
+        .execute(pool)
+        .await?;
+    sqlx::query!("REFRESH MATERIALIZED VIEW klines_1w")
+        .execute(pool)
+        .await?;
     Ok(())
 }

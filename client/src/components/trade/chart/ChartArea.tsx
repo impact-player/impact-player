@@ -18,7 +18,7 @@ export default function ChartArea({ market }: { market: string }) {
       klineData = await getKlines(
         market,
         '1h',
-        Math.floor(new Date().getTime() - 1000 * 60 * 60 * 24 * 7).toString(),
+        Math.floor(new Date().getTime() - 1000 * 60 * 60 * 24).toString(),
         Math.floor(new Date().getTime()).toString()
       );
     } catch (error) {

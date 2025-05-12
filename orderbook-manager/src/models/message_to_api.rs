@@ -9,9 +9,7 @@ pub enum MessageToApi {
     #[serde(rename = "ORDER_CANCELLED")]
     OrderCancelled { payload: OrderCancelledPayload },
     #[serde(rename = "OPEN_ORDERS")]
-    OpenOrders {
-        payload: GetOpenOrdersPayload,
-    },
+    OpenOrders { payload: GetOpenOrdersPayload },
     #[serde(rename = "DEPTH")]
     Depth { payload: DepthPayload },
     #[serde(rename = "USER_BALANCES")]
@@ -38,7 +36,6 @@ pub struct GetOpenOrdersPayload {
     pub user_id: String,
     pub market: String,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DepthPayload {

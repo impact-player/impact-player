@@ -31,3 +31,7 @@ pub struct User {
     pub id: String,
     pub balances: Vec<Balance>,
 }
+
+pub struct Fill {
+    pub price: Decimal,
+}

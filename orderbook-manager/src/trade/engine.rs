@@ -5,12 +5,15 @@ use chrono::Utc;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde_json::json;
+use std::str::FromStr;
 use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
     models::{
-        message_to_api::GetOpenOrdersPayload, AddTradePayload, Balance, CancelOrderPayload, CreateOrderPayload, MessageFromApi, MessageToApi, Order, OrderCancelledPayload, OrderPlacedPayload, OrderSide, TradeData, User, UserBalancesPayload
+        message_to_api::GetOpenOrdersPayload, AddTradePayload, Balance, CancelOrderPayload,
+        CreateOrderPayload, Fill, MessageFromApi, MessageToApi, Order, OrderCancelledPayload,
+        OrderPlacedPayload, OrderSide, TradeData, User, UserBalancesPayload,
     },
     services::RedisManager,
 };
@@ -31,7 +34,7 @@ impl Engine {
             balances: vec![
                 Balance {
                     ticker: "USDC".to_string(),
-                    balance: dec!(10_000),
+                    balance: dec!(100_000_000),
                     locked_balance: dec!(0),
                 },
                 Balance {
@@ -47,7 +50,7 @@ impl Engine {
             balances: vec![
                 Balance {
                     ticker: "USDC".to_string(),
-                    balance: dec!(10_000),
+                    balance: dec!(100_000_000),
                     locked_balance: dec!(0),
                 },
                 Balance {
@@ -90,6 +93,13 @@ impl Engine {
                         };
 
                         let _ = redis_manager.send_to_api(&client_id, &message);
+
+                        self.publish_ws_depth_updates(
+                            data.market.clone(),
+                            data.side.clone(),
+                            data.price,
+                        );
+
                         let trade_info = json!({
                             "price": data.price,
                             "quantity": filled_qty,
@@ -108,6 +118,7 @@ impl Engine {
 
                         let _ = redis_manager
                             .publish_message(&format!("trade@{}", data.market), &trade_info);
+                        
                         let _ = redis_manager.push_message_to_db(&db_info);
                     }
                     Err(e) => {
@@ -181,10 +192,12 @@ impl Engine {
                 }
 
                 let redis_manager = RedisManager::instance();
-                let message = MessageToApi::OpenOrders { payload: GetOpenOrdersPayload {
+                let message = MessageToApi::OpenOrders {
+                    payload: GetOpenOrdersPayload {
                         market: data.market,
-                        user_id: data.user_id
-                    } };
+                        user_id: data.user_id,
+                    },
+                };
 
                 let _ = redis_manager.send_to_api(&client_id, &message);
             }
@@ -383,6 +396,67 @@ impl Engine {
                     true
                 } else {
                     false
+                }
+            }
+        }
+    }
+
+    pub fn publish_ws_depth_updates(&mut self, market: String, side: OrderSide, price: Decimal) {
+        let market_parts: Vec<&str> = market.split('_').collect();
+        let base_asset = market_parts[0];
+        let quote_asset = market_parts[1];
+
+        let mut orderbooks = self.orderbooks.lock().unwrap();
+
+        if let Some(orderbook) = orderbooks
+            .iter_mut()
+            .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
+        {
+            let depth = orderbook.get_depth();
+            let redis_manager = RedisManager::instance();
+
+            match side {
+                OrderSide::Bid => {
+                    // When a buy order is matched, it affects the ask side at that price level
+                    let matching_ask = depth
+                        .asks
+                        .iter()
+                        .find(|x| Decimal::from_str(&x[0].to_string()).unwrap_or(dec!(0)) <= price)
+                        .cloned();
+
+                    info!("publish ws depth updates for bid");
+
+                    let message = json!({
+                        "stream": format!("depth@{}", market),
+                        "data": {
+                            "a": if let Some(ask) = matching_ask { vec![ask] } else { Vec::new() },
+                            "b": depth.bids,
+                            "e": "depth"
+                        }
+                    });
+
+                    let _ = redis_manager.publish_message(&format!("depth@{}", market), &message);
+                }
+                OrderSide::Ask => {
+                    // When a sell order is matched, it affects the bid side at that price level
+                    let matching_bid = depth
+                        .bids
+                        .iter()
+                        .find(|x| Decimal::from_str(&x[0].to_string()).unwrap_or(dec!(0)) >= price)
+                        .cloned();
+
+                    info!("publish ws depth updates for ask");
+
+                    let message = json!({
+                        "stream": format!("depth@{}", market),
+                        "data": {
+                            "a": depth.asks,
+                            "b": if let Some(bid) = matching_bid { vec![bid] } else { Vec::new() },
+                            "e": "depth"
+                        }
+                    });
+
+                    let _ = redis_manager.publish_message(&format!("depth@{}", market), &message);
                 }
             }
         }

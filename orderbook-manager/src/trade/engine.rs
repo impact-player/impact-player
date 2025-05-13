@@ -1,27 +1,14 @@
-use std::sync::{Arc, Mutex};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 use anyhow::{Ok, Result};
-use chrono::Utc;
-use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-use serde_json::json;
-use std::str::FromStr;
 use tracing::{error, info};
-use uuid::Uuid;
+use crate::{models::{Balance, MessageFromApi, MessageToApi, OrderCancelledPayload, OrderbookMessage, User, UserBalancesPayload}, services::RedisManager};
 
-use crate::{
-    models::{
-        message_to_api::GetOpenOrdersPayload, AddTradePayload, Balance, CancelOrderPayload,
-        CreateOrderPayload, Fill, MessageFromApi, MessageToApi, Order, OrderCancelledPayload,
-        OrderPlacedPayload, OrderSide, TradeData, User, UserBalancesPayload,
-    },
-    services::RedisManager,
-};
-
-use super::Orderbook;
+use super::{OrderbookWorker};
 
 pub struct Engine {
-    pub orderbooks: Arc<Mutex<Vec<Orderbook>>>,
+    pub orderbook_workers: HashMap<String, OrderbookWorker>,
     pub users: Arc<Mutex<Vec<User>>>,
 }
 
@@ -39,7 +26,7 @@ impl Engine {
                 },
                 Balance {
                     ticker: "SOL".to_string(),
-                    balance: dec!(10),
+                    balance: dec!(100_000_000),
                     locked_balance: dec!(0),
                 },
             ],
@@ -55,171 +42,111 @@ impl Engine {
                 },
                 Balance {
                     ticker: "SOL".to_string(),
-                    balance: dec!(10),
+                    balance: dec!(100_000_000),
                     locked_balance: dec!(0),
                 },
             ],
         });
 
-        Engine {
-            orderbooks: Arc::new(Mutex::new(vec![Orderbook::new(
-                "SOL".to_string(),
-                "USDC".to_string(),
-            )])),
-            users: Arc::new(Mutex::new(initial_users)),
+        let users = Arc::new(Mutex::new(initial_users));
+
+        let mut engine = Engine {
+            orderbook_workers: HashMap::new(),
+            users,
+        };
+
+        engine.create_market("SOL".to_string(), "USDC".to_string()).unwrap();
+
+        engine
+    }
+
+    pub fn create_market(&mut self, base_asset: String, quote_asset: String) -> Result<()> {
+        let market = format!("{}_{}", base_asset, quote_asset);
+
+        if self.orderbook_workers.contains_key(&market) {
+            return Err(anyhow::anyhow!("Market already exists"));
         }
+
+        let worker = OrderbookWorker::new(market.clone(), base_asset, quote_asset, Arc::clone(&self.users));
+
+        self.orderbook_workers.insert(market, worker);
+
+        Ok(())
     }
 
     pub fn process(&mut self, client_id: String, message: MessageFromApi) {
         match message {
             MessageFromApi::CreateOrder { data } => {
-                let result = self.create_order(&data);
-
-                match result {
-                    Result::Ok((remaining_qty, filled_qty, order_id)) => {
-                        info!(
-                            order_id,
-                            ?remaining_qty,
-                            ?filled_qty,
-                            "Order created successfully"
-                        );
-                        let redis_manager = RedisManager::instance();
-                        let message = MessageToApi::OrderPlaced {
-                            payload: OrderPlacedPayload {
-                                order_id,
-                                remaining_qty,
-                                filled_qty,
-                            },
-                        };
-
-                        let _ = redis_manager.send_to_api(&client_id, &message);
-
-                        self.publish_ws_depth_updates(
-                            data.market.clone(),
-                            data.side.clone(),
-                            data.price,
-                        );
-
-                        let trade_info = json!({
-                            "price": data.price,
-                            "quantity": filled_qty,
-                            "side": data.side,
-                            "timestamp": Utc::now().timestamp()
-                        });
-
-                        let db_info = AddTradePayload {
-                            data: TradeData {
-                                ticker: data.market.clone(),
-                                time: Utc::now(),
-                                price: data.price,
-                                quantity: data.quantity,
-                            },
-                        };
-
-                        let _ = redis_manager
-                            .publish_message(&format!("trade@{}", data.market), &trade_info);
-                        
-                        let _ = redis_manager.push_message_to_db(&db_info);
+                if let Some(worker) = self.orderbook_workers.get(&data.market) {
+                    if let Err(e) = worker.sender.send(OrderbookMessage::CreateOrder {
+                        client_id,
+                        payload: data,
+                    }) {
+                        error!("Failed to send create order message to worker: {}", e);
                     }
-                    Err(e) => {
-                        error!("Failed to create order: {}", e);
-                        let redis_manager = RedisManager::instance();
-                        let message = MessageToApi::OrderCancelled {
-                            payload: OrderCancelledPayload {
-                                message: Some(String::from("Order execution failed")),
-                            },
-                        };
-
-                        let _ = redis_manager.send_to_api(&client_id, &message);
-                    }
+                } else {
+                    error!("Market not found: {}", data.market);
+                    let redis_manager = RedisManager::instance();
+                    let message = MessageToApi::OrderCancelled {
+                        payload: OrderCancelledPayload {
+                            message: Some(String::from("Market not found")),
+                        },
+                    };
+                    let _ = redis_manager.send_to_api(&client_id, &message);
                 }
-            }
+            },
             MessageFromApi::CancelOrder { data } => {
-                self.cancel_order(&data).unwrap();
-
-                info!(order_id = ?data.order_id, "Order cancelled successfully");
-                let redis_manager = RedisManager::instance();
-                let message = MessageToApi::OrderCancelled {
-                    payload: OrderCancelledPayload {
-                        message: Some(String::from("ORDER CANCELLED")),
-                    },
-                };
-
-                let _ = redis_manager.send_to_api(&client_id, &message);
-            }
+                if let Some(worker) = self.orderbook_workers.get(&data.market) {
+                    if let Err(e) = worker.sender.send(OrderbookMessage::CancelOrder {
+                        client_id,
+                        payload: data,
+                    }) {
+                        error!("Failed to send cancel order message to worker: {}", e);
+                    }
+                } else {
+                    error!("Market not found: {}", data.market);
+                }
+            },
             MessageFromApi::GetDepth { data } => {
-                let market: Vec<&str> = data.market.split('_').collect();
-                let base_asset = market[0];
-                let quote_asset = market[1];
-                let mut orderbooks = self.orderbooks.lock().unwrap();
-
-                let orderbook = orderbooks
-                    .iter_mut()
-                    .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
-                    .ok_or_else(|| anyhow::anyhow!("Market not found"))
-                    .expect("Market not found");
-
-                let depth = orderbook.get_depth();
-
-                let redis_manager = RedisManager::instance();
-                let message = MessageToApi::Depth { payload: depth };
-                let _ = redis_manager.send_to_api(&client_id, &message);
-            }
-            MessageFromApi::GetOpenOrders { data } => {
-                let market: Vec<&str> = data.market.split('_').collect();
-                let base_asset = market[0];
-                let quote_asset = market[1];
-                let mut orderbooks = self.orderbooks.lock().unwrap();
-
-                let orderbook = orderbooks
-                    .iter_mut()
-                    .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
-                    .ok_or_else(|| anyhow::anyhow!("Market not found"))
-                    .expect("Market not found");
-
-                let mut open_orders = Vec::new();
-
-                for bid in orderbook.bids.iter() {
-                    if bid.user_id == data.user_id {
-                        open_orders.push(bid.clone());
-                    }
-                }
-
-                for ask in orderbook.asks.iter() {
-                    if ask.user_id == data.user_id {
-                        open_orders.push(ask.clone());
-                    }
-                }
-
-                let redis_manager = RedisManager::instance();
-                let message = MessageToApi::OpenOrders {
-                    payload: GetOpenOrdersPayload {
+                if let Some(worker) = self.orderbook_workers.get(&data.market) {
+                    if let Err(e) = worker.sender.send(OrderbookMessage::GetDepth {
+                        client_id,
                         market: data.market,
-                        user_id: data.user_id,
-                    },
-                };
-
-                let _ = redis_manager.send_to_api(&client_id, &message);
-            }
+                    }) {
+                        error!("Failed to send get depth message to worker: {}", e);
+                    }
+                } else {
+                    error!("Market not found: {}", data.market);
+                }
+            },
+            MessageFromApi::GetOpenOrders { data } => {
+                if let Some(worker) = self.orderbook_workers.get(&data.market) {
+                    if let Err(e) = worker.sender.send(OrderbookMessage::GetOpenOrders {
+                        client_id,
+                        payload: data,
+                    }) {
+                        error!("Failed to send get open orders message to worker: {}", e);
+                    }
+                } else {
+                    error!("Market not found: {}", data.market);
+                }
+            },
             MessageFromApi::GetQuote { data } => {
-                let market: Vec<&str> = data.market.split('_').collect();
-                let base_asset = market[0];
-                let quote_asset = market[1];
-                let mut orderbooks = self.orderbooks.lock().unwrap();
-
-                let orderbook = orderbooks
-                    .iter_mut()
-                    .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
-                    .ok_or_else(|| anyhow::anyhow!("Market not found"))
-                    .expect("Market not found");
-
-                let quote = orderbook.get_quote_detail(data.quantity, data.side);
-
-                let redis_manager = RedisManager::instance();
-                let message = MessageToApi::Quote { payload: quote };
-                let _ = redis_manager.send_to_api(&client_id, &message);
-            }
+                if let Some(worker) = self.orderbook_workers.get(&data.market) {
+                    if let Err(e) = worker.sender.send(OrderbookMessage::GetQuote {
+                        client_id,
+                        market: data.market,
+                        quantity: data.quantity,
+                        side: data.side,
+                    }) {
+                        error!("Failed to send get quote message to worker: {}", e);
+                    }
+                } else {
+                    error!("Market not found: {}", data.market);
+                }
+            },
             MessageFromApi::GetUserBalances { data } => {
+                // User balances are not tied to a specific orderbook, so we handle this here
                 let mut users = self.users.lock().unwrap();
                 let user = users
                     .iter_mut()
@@ -234,229 +161,23 @@ impl Engine {
                 };
 
                 let _ = redis_manager.send_to_api(&client_id, &message);
-            }
+            },
         }
     }
+}
 
-    fn create_order(&mut self, payload: &CreateOrderPayload) -> Result<(Decimal, Decimal, String)> {
-        let order_id = Uuid::new_v4().to_string();
-
-        if !self.validate_balance(&payload) {
-            error!("Insufficient balance for trade");
-            return Err(anyhow::anyhow!("Insufficient balance for trade"));
-        }
-
-        let market: Vec<&str> = payload.market.split('_').collect();
-        let base_asset = market[0];
-        let quote_asset = market[1];
-        let mut orderbooks = self.orderbooks.lock().unwrap();
-
-        let orderbook = orderbooks
-            .iter_mut()
-            .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
-            .ok_or_else(|| anyhow::anyhow!("Market not found"))?;
-
-        let remaining_qty =
-            orderbook.fill_orders(payload, &mut self.users, base_asset, quote_asset);
-
-        if remaining_qty == Decimal::ZERO {
-            return Ok((Decimal::ZERO, payload.quantity, order_id.clone()));
-        }
-
-        let new_order = Order {
-            id: order_id.clone(),
-            user_id: payload.user_id.clone(),
-            price: payload.price,
-            quantity: payload.quantity,
-            side: payload.side.clone(),
-            timestamp: Utc::now().timestamp(),
-        };
-
-        match payload.side {
-            OrderSide::Bid => {
-                orderbook.bids.push(new_order);
-                orderbook.bids.sort_by(|a, b| {
-                    b.price
-                        .cmp(&a.price)
-                        .then_with(|| a.timestamp.cmp(&b.timestamp))
-                });
+impl Drop for Engine {
+    fn drop(&mut self) {
+        for (market, worker) in self.orderbook_workers.iter_mut() {
+            info!("Shutting down orderbook worker for market: {}", market);
+            if let Err(e) = worker.sender.send(OrderbookMessage::ShutDown) {
+                error!("Failed to send shutdown message to worker: {}", e);
             }
-            OrderSide::Ask => {
-                orderbook.asks.push(new_order);
-                orderbook.asks.sort_by(|a, b| {
-                    a.price
-                        .cmp(&b.price)
-                        .then_with(|| a.timestamp.cmp(&b.timestamp))
-                });
-            }
-        }
-
-        let filled_qty = payload.quantity.checked_sub(remaining_qty).unwrap();
-
-        Ok((remaining_qty, filled_qty, order_id))
-    }
-
-    fn cancel_order(&mut self, payload: &CancelOrderPayload) -> Result<()> {
-        let market: Vec<&str> = payload.market.split('_').collect();
-        let base_asset = market[0];
-        let quote_asset = market[1];
-        let mut orderbooks = self.orderbooks.lock().unwrap();
-
-        let orderbook = orderbooks
-            .iter_mut()
-            .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
-            .ok_or_else(|| anyhow::anyhow!("Market not found"))?;
-
-        if let Some(bid_index) = orderbook
-            .bids
-            .iter()
-            .position(|order| order.id == payload.order_id)
-        {
-            let order = &orderbook.bids[bid_index];
-
-            let mut users = self.users.lock().unwrap();
-            if let Some(user) = users.iter_mut().find(|u| u.id == order.user_id) {
-                if let Some(balance) = user.balances.iter_mut().find(|b| b.ticker == quote_asset) {
-                    let locked_amount = order.price * order.quantity;
-                    balance.locked_balance -= locked_amount;
-                }
-            }
-
-            let _ = orderbook.bids.remove(bid_index);
-            return Ok(());
-        }
-
-        if let Some(ask_index) = orderbook
-            .asks
-            .iter()
-            .position(|order| order.id == payload.order_id)
-        {
-            let order = &orderbook.asks[ask_index];
-
-            let mut users = self.users.lock().unwrap();
-            if let Some(user) = users.iter_mut().find(|u| u.id == order.user_id) {
-                if let Some(balance) = user.balances.iter_mut().find(|b| b.ticker == base_asset) {
-                    balance.locked_balance -= order.quantity;
-                }
-            }
-
-            let _ = &orderbook.asks.remove(ask_index);
-            return Ok(());
-        }
-
-        Ok(())
-    }
-
-    fn validate_balance(&self, payload: &CreateOrderPayload) -> bool {
-        let mut users = self.users.lock().unwrap();
-
-        let user = users
-            .iter_mut()
-            .find(|u| u.id == payload.user_id)
-            .expect("User not found");
-
-        match payload.side {
-            OrderSide::Bid => {
-                let usdc_balance = user
-                    .balances
-                    .iter()
-                    .find(|b| b.ticker == "USDC".to_string())
-                    .map(|b| b.balance - b.locked_balance)
-                    .unwrap_or(dec!(0));
-
-                let required_amount = payload.price * payload.quantity;
-                if usdc_balance >= required_amount {
-                    if let Some(balance) = user
-                        .balances
-                        .iter_mut()
-                        .find(|b| b.ticker == "USDC".to_string())
-                    {
-                        balance.locked_balance += required_amount;
-                    }
-                    true
-                } else {
-                    false
-                }
-            }
-            OrderSide::Ask => {
-                let sol_balance = user
-                    .balances
-                    .iter()
-                    .find(|b| b.ticker == "SOL".to_string())
-                    .map(|b| b.balance)
-                    .unwrap_or(dec!(0));
-                if sol_balance >= payload.quantity {
-                    if let Some(balance) = user
-                        .balances
-                        .iter_mut()
-                        .find(|b| b.ticker == "SOL".to_string())
-                    {
-                        balance.locked_balance += payload.quantity;
-                    }
-                    true
-                } else {
-                    false
-                }
-            }
-        }
-    }
-
-    pub fn publish_ws_depth_updates(&mut self, market: String, side: OrderSide, price: Decimal) {
-        let market_parts: Vec<&str> = market.split('_').collect();
-        let base_asset = market_parts[0];
-        let quote_asset = market_parts[1];
-
-        let mut orderbooks = self.orderbooks.lock().unwrap();
-
-        if let Some(orderbook) = orderbooks
-            .iter_mut()
-            .find(|ob| ob.base_asset == base_asset && ob.quote_asset == quote_asset)
-        {
-            let depth = orderbook.get_depth();
-            let redis_manager = RedisManager::instance();
-
-            match side {
-                OrderSide::Bid => {
-                    // When a buy order is matched, it affects the ask side at that price level
-                    let matching_ask = depth
-                        .asks
-                        .iter()
-                        .find(|x| Decimal::from_str(&x[0].to_string()).unwrap_or(dec!(0)) <= price)
-                        .cloned();
-
-                    info!("publish ws depth updates for bid");
-
-                    let message = json!({
-                        "stream": format!("depth@{}", market),
-                        "data": {
-                            "a": if let Some(ask) = matching_ask { vec![ask] } else { Vec::new() },
-                            "b": depth.bids,
-                            "e": "depth"
-                        }
-                    });
-
-                    let _ = redis_manager.publish_message(&format!("depth@{}", market), &message);
-                }
-                OrderSide::Ask => {
-                    // When a sell order is matched, it affects the bid side at that price level
-                    let matching_bid = depth
-                        .bids
-                        .iter()
-                        .find(|x| Decimal::from_str(&x[0].to_string()).unwrap_or(dec!(0)) >= price)
-                        .cloned();
-
-                    info!("publish ws depth updates for ask");
-
-                    let message = json!({
-                        "stream": format!("depth@{}", market),
-                        "data": {
-                            "a": depth.asks,
-                            "b": if let Some(bid) = matching_bid { vec![bid] } else { Vec::new() },
-                            "e": "depth"
-                        }
-                    });
-
-                    let _ = redis_manager.publish_message(&format!("depth@{}", market), &message);
+            
+            // Join the thread
+            if let Some(thread_handle) = worker.thread_handle.take() {
+                if let Err(e) = thread_handle.join() {
+                    error!("Failed to join orderbook worker thread: {:?}", e);
                 }
             }
         }

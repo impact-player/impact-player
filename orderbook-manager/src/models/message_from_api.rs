@@ -49,7 +49,7 @@ pub struct GetQuotePayload {
     pub quantity: Decimal,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetOpenOrdersPayload {
     #[serde(rename = "userId")]
     pub user_id: String,

@@ -1,5 +1,5 @@
 use super::{
-    message_to_api::GetOpenOrdersPayload, CancelOrderPayload, CreateOrderPayload, OrderSide, User,
+    CancelOrderPayload, CreateOrderPayload, GetOpenOrdersPayload, OpenOrders, OrderSide, User
 };
 use rust_decimal::Decimal;
 

@@ -8,6 +8,7 @@ use rust_decimal_macros::dec;
 
 use crate::models::{CreateOrderPayload, DepthPayload, Order, OrderSide, QuotePayload, User};
 
+#[derive(Debug, Clone)]
 pub struct Orderbook {
     pub bids: Vec<Order>,
     pub asks: Vec<Order>,
@@ -28,7 +29,7 @@ impl Orderbook {
     pub fn fill_orders(
         &mut self,
         order: &CreateOrderPayload,
-        users: &mut Arc<Mutex<Vec<User>>>,
+        users: &Arc<Mutex<Vec<User>>>,
         base_asset: &str,
         quote_asset: &str,
     ) -> Decimal {
@@ -201,7 +202,7 @@ impl Orderbook {
         seller_id: &str,
         price: Decimal,
         quantity: Decimal,
-        users: &mut Arc<Mutex<Vec<User>>>,
+        users: &Arc<Mutex<Vec<User>>>,
         base_asset: &str,
         quote_asset: &str,
     ) {

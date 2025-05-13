@@ -1,14 +1,18 @@
-// src/utils/SignalingManager.ts
+import { DepthPayload, TradePayload } from './types';
+
 export const BASE_URL = 'ws://localhost:8081/ws';
 
-type DepthPayload = { bids: [string, string][]; asks: [string, string][] };
-type Callback = (data: DepthPayload) => void;
+type Callback<T> = (data: T) => void;
+
+type RoomType = 'depth' | 'trade';
+type Room = `${RoomType}@${string}`;
 
 export class SignalingManager {
   private ws: WebSocket;
   private static instance: SignalingManager;
   private buffer: any[] = [];
-  private callbacks: Record<string, Callback[]> = {};
+  private depthCallbacks: Record<string, Callback<DepthPayload>[]> = {};
+  private tradeCallbacks: Record<string, Callback<TradePayload>[]> = {};
   private id = 1;
   private opened = false;
 
@@ -34,14 +38,54 @@ export class SignalingManager {
     this.ws.onmessage = (evt) => {
       const env = JSON.parse(evt.data);
       const room: string = env.room;
-      if (!this.callbacks[room]?.length) return;
 
-      // parse the stringified data field
-      const wrapper = JSON.parse(env.data);
-      const { a: asks, b: bids } = wrapper.data;
+      if (!room) return;
 
-      this.callbacks[room].forEach((cb) => cb({ bids, asks }));
+      try {
+        const data = JSON.parse(env.data);
+
+        if (room.startsWith('depth@') && this.depthCallbacks[room]?.length) {
+          const { a: asks, b: bids } = data.data || {};
+
+          if (asks !== undefined && bids !== undefined) {
+            this.depthCallbacks[room].forEach((cb) => cb({ bids, asks }));
+          }
+        } else if (
+          room.startsWith('trade@') &&
+          this.tradeCallbacks[room]?.length
+        ) {
+          const { price, quantity, side, timestamp } = data;
+
+          if (price !== undefined) {
+            this.tradeCallbacks[room].forEach((cb) =>
+              cb({ price, quantity, side, timestamp })
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Error processing message:', error);
+      }
     };
+
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  }
+
+  public subscribe(room: Room) {
+    const message = {
+      type: 'SUBSCRIBE',
+      payload: { room },
+    };
+    this.sendMessage(message);
+  }
+
+  public unsubscribe(room: Room) {
+    const message = {
+      type: 'UNSUBSCRIBE',
+      payload: { room },
+    };
+    this.sendMessage(message);
   }
 
   public sendMessage(msg: any) {
@@ -53,12 +97,47 @@ export class SignalingManager {
     }
   }
 
-  public registerCallback(room: string, cb: Callback) {
-    (this.callbacks[room] ||= []).push(cb);
+  public registerDepthCallback(room: string, cb: Callback<DepthPayload>) {
+    (this.depthCallbacks[room] ||= []).push(cb);
   }
 
-  public deRegisterCallback(room: string, cb: Callback) {
-    if (!this.callbacks[room]) return;
-    this.callbacks[room] = this.callbacks[room].filter((x) => x !== cb);
+  public registerTradeCallback(room: string, cb: Callback<TradePayload>) {
+    (this.tradeCallbacks[room] ||= []).push(cb);
+  }
+
+  public deRegisterDepthCallback(room: string, cb: Callback<DepthPayload>) {
+    if (!this.depthCallbacks[room]) return;
+    this.depthCallbacks[room] = this.depthCallbacks[room].filter(
+      (x) => x !== cb
+    );
+  }
+
+  public deRegisterTradeCallback(room: string, cb: Callback<TradePayload>) {
+    if (!this.tradeCallbacks[room]) return;
+    this.tradeCallbacks[room] = this.tradeCallbacks[room].filter(
+      (x) => x !== cb
+    );
+  }
+
+  public registerCallback<T extends RoomType>(
+    room: `${T}@${string}`,
+    cb: T extends 'depth' ? Callback<DepthPayload> : Callback<TradePayload>
+  ) {
+    if (room.startsWith('depth@')) {
+      this.registerDepthCallback(room, cb as Callback<DepthPayload>);
+    } else if (room.startsWith('trade@')) {
+      this.registerTradeCallback(room, cb as Callback<TradePayload>);
+    }
+  }
+
+  public deRegisterCallback<T extends RoomType>(
+    room: `${T}@${string}`,
+    cb: T extends 'depth' ? Callback<DepthPayload> : Callback<TradePayload>
+  ) {
+    if (room.startsWith('depth@')) {
+      this.deRegisterDepthCallback(room, cb as Callback<DepthPayload>);
+    } else if (room.startsWith('trade@')) {
+      this.deRegisterTradeCallback(room, cb as Callback<TradePayload>);
+    }
   }
 }

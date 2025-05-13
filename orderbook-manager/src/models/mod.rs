@@ -10,6 +10,9 @@ pub use message_to_api::*;
 pub mod message_to_db;
 pub use message_to_db::*;
 
+pub mod orderbook_worker_message;
+pub use orderbook_worker_message::*;
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IncomingMessage {
     pub client_id: String,

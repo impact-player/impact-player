@@ -1,4 +1,3 @@
-// components/Depth.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import { getDepth } from '@/src/utils/httpClient';
@@ -7,9 +6,9 @@ import { BidTable } from './BidTable';
 import { SignalingManager } from '@/src/utils/SignalingManager';
 
 export default function Depth({ market }: { market: string }) {
-  const [bids, setBids] = useState<[string, string][]>();
-  const [asks, setAsks] = useState<[string, string][]>();
-  const room = `depth@${market}`;
+  const [bids, setBids] = useState<[string, string][]>([]);
+  const [asks, setAsks] = useState<[string, string][]>([]);
+  const room = `depth@${market}` as const;
 
   useEffect(() => {
     const onDepth = (data: {
@@ -26,8 +25,10 @@ export default function Depth({ market }: { market: string }) {
     };
 
     const mgr = SignalingManager.getInstance();
-    mgr.registerCallback(room, onDepth);
-    mgr.sendMessage({ type: 'SUBSCRIBE', payload: { room } });
+
+    mgr.registerDepthCallback(room, onDepth);
+
+    mgr.subscribe(room);
 
     getDepth(market).then((d) => {
       setBids(d.payload.bids);
@@ -35,8 +36,9 @@ export default function Depth({ market }: { market: string }) {
     });
 
     return () => {
-      mgr.sendMessage({ type: 'UNSUBSCRIBE', payload: { room } });
-      mgr.deRegisterCallback(room, onDepth);
+      mgr.unsubscribe(room);
+
+      mgr.deRegisterDepthCallback(room, onDepth);
     };
   }, [market]);
 

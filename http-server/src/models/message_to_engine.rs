@@ -1,3 +1,6 @@
+use core::fmt;
+
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +19,8 @@ pub enum MessageToEngine {
     GetOpenOrders { data: GetOpenOrdersPayload },
     #[serde(rename = "GET_USER_BALANCES")]
     GetUserBalances { data: GetUserBalancesPayload },
+    #[serde(rename = "CREATE_MARKET")]
+    CreateMarket { data: CreateMarketPayload },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -83,4 +88,31 @@ pub struct GetUserBalancesPayload {
 pub enum OrderSide {
     Bid,
     Ask,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CreateMarketPayload {
+    pub name: String,
+    pub description: Option<String>,
+    pub base_asset: String,
+    pub quote_asset: String,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
+    pub status: Status,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Status {
+    Incoming,
+    Ongoing,
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Status::Incoming => "incoming",
+            Status::Ongoing => "ongoing",
+        };
+        write!(f, "{}", s)
+    }
 }

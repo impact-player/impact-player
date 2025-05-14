@@ -8,8 +8,8 @@ use axum::{
 };
 use dotenv::dotenv;
 use routes::{
-    cancel_order, create_order, get_balances, get_depth, get_klines, get_quote, get_trades,
-    open_orders,
+    cancel_order, create_market, create_order, get_balances, get_depth, get_klines, get_quote,
+    get_trades, open_orders,
 };
 use state::AppState;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
@@ -41,9 +41,14 @@ async fn main() -> Result<()> {
                         .route("/quote", post(get_quote)),
                 )
                 .nest("/depth", Router::new().route("/", get(get_depth)))
-                .route("/klines", get(get_klines))
-                .route("/trades", get(get_trades))
-                .nest("/user", Router::new().route("/balances", get(get_balances))),
+                .nest(
+                    "/market",
+                    Router::new()
+                        .route("/create", post(create_market))
+                        .route("/klines", get(get_klines))
+                        .route("/trades", get(get_trades))
+                        .nest("/user", Router::new().route("/balances", get(get_balances))),
+                ),
         )
         .layer(TraceLayer::new_for_http())
         .layer(

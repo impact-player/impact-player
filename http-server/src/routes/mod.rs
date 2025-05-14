@@ -12,3 +12,6 @@ pub use klines::*;
 
 pub mod trades;
 pub use trades::*;
+
+pub mod market;
+pub use market::*;

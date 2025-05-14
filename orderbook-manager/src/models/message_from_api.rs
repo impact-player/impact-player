@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +17,8 @@ pub enum MessageFromApi {
     GetOpenOrders { data: GetOpenOrdersPayload },
     #[serde(rename = "GET_USER_BALANCES")]
     GetUserBalances { data: GetUserBalancesPayload },
+    #[serde(rename = "CREATE_MARKET")]
+    CreateMarket { data: CreateMarketPayload },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -66,4 +69,21 @@ pub struct GetUserBalancesPayload {
 pub enum OrderSide {
     Bid,
     Ask,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CreateMarketPayload {
+    pub name: String,
+    pub description: Option<String>,
+    pub base_asset: String,
+    pub quote_asset: String,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
+    pub status: Status,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Status {
+    Incoming,
+    Ongoing,
 }

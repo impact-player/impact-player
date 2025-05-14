@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use super::{Order, OrderSide};
+use super::{Order};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -20,6 +18,8 @@ pub enum MessageFromEngine {
     UserBalances { payload: UserBalancesPayload },
     #[serde(rename = "QUOTE")]
     Quote { payload: QuotePayload },
+    #[serde(rename = "MARKET_CREATED")]
+    MarketCreated {payload: MarketCreated }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,14 +39,12 @@ pub struct OpenOrdersPayload {
     pub open_orders: Vec<Order>,
 }
 
-// Depth Payload
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DepthPayload {
     pub bids: Vec<[String; 2]>,
     pub asks: Vec<[String; 2]>,
 }
 
-// User Balances
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserBalancesPayload {
     pub balances: Vec<Balance>,
@@ -65,4 +63,9 @@ pub struct QuotePayload {
     pub avg_price: Decimal,
     pub quantity: Decimal,
     pub total_cost: Decimal,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MarketCreated {
+    pub message: Option<String>,
 }

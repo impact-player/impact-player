@@ -9,11 +9,15 @@ import {
 } from '@/src/components/ui/tabs';
 import { Trade } from '@/src/utils/types';
 import { getTrades } from '@/src/utils/httpClient';
+import { SignalingManager } from '@/src/utils/SignalingManager';
 
 export default function BottomTable() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const market = 'SOL_USDC';
+  const room = `trade@${market}`;
 
   const fetchTrades = async () => {
     try {
@@ -21,7 +25,7 @@ export default function BottomTable() {
       setError(null);
       const response = await getTrades('SOL/USD');
       if (response.success) {
-        setTrades(response.data);
+        setTrades(response.data.reverse());
       } else {
         setError('Failed to fetch trades');
       }
@@ -40,6 +44,37 @@ export default function BottomTable() {
 
   useEffect(() => {
     fetchTrades();
+
+    const onTrade = (data: {
+      price: string;
+      quantity: string;
+      side: string;
+      timestamp: number;
+    }) => {
+      console.log('Real-time trade update:', data);
+
+      const newTrade: Trade = {
+        id: Date.now().toString(),
+        price: parseFloat(data.price),
+        quantity: parseFloat(data.quantity),
+        currency_code: market.replace('_', '/'),
+        side: data.side,
+        time: new Date(data.timestamp).toISOString(),
+      };
+
+      setTrades((prevTrades) => [newTrade, ...prevTrades.slice(0, 49)]);
+    };
+
+    const mgr = SignalingManager.getInstance();
+
+    mgr.registerTradeCallback(room, onTrade);
+
+    mgr.subscribe(room);
+
+    return () => {
+      mgr.unsubscribe(room);
+      mgr.deRegisterTradeCallback(room, onTrade);
+    };
   }, []);
 
   return (
@@ -105,6 +140,7 @@ export default function BottomTable() {
                       <th className="text-left py-2">Price</th>
                       <th className="text-left py-2">Quantity</th>
                       <th className="text-left py-2">Currency</th>
+                      <th className="text-left py-2">Time</th>
                     </tr>
                   </thead>
                 </table>
@@ -114,12 +150,20 @@ export default function BottomTable() {
                   <tbody>
                     {trades.map((trade, index) => (
                       <tr key={index} className="border-t border-border/10">
-                        <td className="py-2 pr-8">${trade.price.toFixed(2)}</td>
+                        <td
+                          className={`py-2 pr-8 ${
+                            trade.side === 'Ask'
+                              ? 'text-red-500'
+                              : 'text-green-500'
+                          }`}
+                        >
+                          ${trade.price.toFixed(2)}
+                        </td>
                         <td className="py-2 pr-18">
                           {trade.quantity.toFixed(2)}
                         </td>
                         <td className="py-2 pr-18">{trade.currency_code}</td>
-                        {/* <td className="py-2 pr-8">{formatDate(trade.time)}</td> */}
+                        <td className="py-2 pr-8">{formatDate(trade.time)}</td>
                       </tr>
                     ))}
                   </tbody>

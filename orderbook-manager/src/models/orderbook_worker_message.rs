@@ -1,6 +1,4 @@
-use super::{
-    CancelOrderPayload, CreateOrderPayload, GetOpenOrdersPayload, OpenOrders, OrderSide, User
-};
+use super::{CancelOrderPayload, CreateOrderPayload, GetOpenOrdersPayload, OrderSide};
 use rust_decimal::Decimal;
 
 pub enum OrderbookMessage {

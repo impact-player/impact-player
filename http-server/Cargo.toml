@@ -18,10 +18,11 @@ sqlx = { version = "0.8.5", features = [
     "runtime-tokio-native-tls",
     "chrono",
     "time",
+    "uuid"
 ] }
-time = "0.3.41"
+time = { version = "0.3.41", features = ["serde"]}
 tokio = { workspace = true, features = ["full"] }
 tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-uuid = { version = "1.16.0", features = ["v4"] }
+uuid = { version = "1.16.0", features = ["v4", "serde"] }

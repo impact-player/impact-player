@@ -1,11 +1,19 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
+use crate::{
+    models::{
+        Balance, MarketCreated, MessageFromApi, MessageToApi, OrderCancelledPayload, OrderbookMessage, User, UserBalancesPayload
+    },
+    services::RedisManager,
+};
 use anyhow::{Ok, Result};
 use rust_decimal_macros::dec;
 use tracing::{error, info};
-use crate::{models::{Balance, MessageFromApi, MessageToApi, OrderCancelledPayload, OrderbookMessage, User, UserBalancesPayload}, services::RedisManager};
 
-use super::{OrderbookWorker};
+use super::OrderbookWorker;
 
 pub struct Engine {
     pub orderbook_workers: HashMap<String, OrderbookWorker>,
@@ -50,12 +58,10 @@ impl Engine {
 
         let users = Arc::new(Mutex::new(initial_users));
 
-        let mut engine = Engine {
+        let engine = Engine {
             orderbook_workers: HashMap::new(),
             users,
         };
-
-        engine.create_market("SOL".to_string(), "USDC".to_string()).unwrap();
 
         engine
     }
@@ -67,7 +73,12 @@ impl Engine {
             return Err(anyhow::anyhow!("Market already exists"));
         }
 
-        let worker = OrderbookWorker::new(market.clone(), base_asset, quote_asset, Arc::clone(&self.users));
+        let worker = OrderbookWorker::new(
+            market.clone(),
+            base_asset,
+            quote_asset,
+            Arc::clone(&self.users),
+        );
 
         self.orderbook_workers.insert(market, worker);
 
@@ -76,6 +87,28 @@ impl Engine {
 
     pub fn process(&mut self, client_id: String, message: MessageFromApi) {
         match message {
+            MessageFromApi::CreateMarket { data } => {
+                match self.create_market(data.base_asset.clone(), data.quote_asset.clone()) {
+                    Result::Ok(()) => {
+                        let response = MessageToApi::MarketCreated {
+                            payload: MarketCreated {
+                                message: Some("Market successfully created".to_string()),
+                            },
+                        };
+                        let _ = RedisManager::instance()
+                            .send_to_api(&client_id, &response);
+                    }
+                    Err(err) => {
+                        let response = MessageToApi::OrderCancelled {
+                            payload: OrderCancelledPayload {
+                                message: Some(format!("Failed to create market: {}", err)),
+                            },
+                        };
+                        let _ = RedisManager::instance()
+                            .send_to_api(&client_id, &response);
+                    }
+                }
+            }
             MessageFromApi::CreateOrder { data } => {
                 if let Some(worker) = self.orderbook_workers.get(&data.market) {
                     if let Err(e) = worker.sender.send(OrderbookMessage::CreateOrder {
@@ -94,7 +127,7 @@ impl Engine {
                     };
                     let _ = redis_manager.send_to_api(&client_id, &message);
                 }
-            },
+            }
             MessageFromApi::CancelOrder { data } => {
                 if let Some(worker) = self.orderbook_workers.get(&data.market) {
                     if let Err(e) = worker.sender.send(OrderbookMessage::CancelOrder {
@@ -106,7 +139,7 @@ impl Engine {
                 } else {
                     error!("Market not found: {}", data.market);
                 }
-            },
+            }
             MessageFromApi::GetDepth { data } => {
                 if let Some(worker) = self.orderbook_workers.get(&data.market) {
                     if let Err(e) = worker.sender.send(OrderbookMessage::GetDepth {
@@ -118,7 +151,7 @@ impl Engine {
                 } else {
                     error!("Market not found: {}", data.market);
                 }
-            },
+            }
             MessageFromApi::GetOpenOrders { data } => {
                 if let Some(worker) = self.orderbook_workers.get(&data.market) {
                     if let Err(e) = worker.sender.send(OrderbookMessage::GetOpenOrders {
@@ -130,7 +163,7 @@ impl Engine {
                 } else {
                     error!("Market not found: {}", data.market);
                 }
-            },
+            }
             MessageFromApi::GetQuote { data } => {
                 if let Some(worker) = self.orderbook_workers.get(&data.market) {
                     if let Err(e) = worker.sender.send(OrderbookMessage::GetQuote {
@@ -144,7 +177,7 @@ impl Engine {
                 } else {
                     error!("Market not found: {}", data.market);
                 }
-            },
+            }
             MessageFromApi::GetUserBalances { data } => {
                 // User balances are not tied to a specific orderbook, so we handle this here
                 let mut users = self.users.lock().unwrap();
@@ -161,7 +194,7 @@ impl Engine {
                 };
 
                 let _ = redis_manager.send_to_api(&client_id, &message);
-            },
+            }
         }
     }
 }
@@ -173,7 +206,7 @@ impl Drop for Engine {
             if let Err(e) = worker.sender.send(OrderbookMessage::ShutDown) {
                 error!("Failed to send shutdown message to worker: {}", e);
             }
-            
+
             // Join the thread
             if let Some(thread_handle) = worker.thread_handle.take() {
                 if let Err(e) = thread_handle.join() {

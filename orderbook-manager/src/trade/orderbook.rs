@@ -9,6 +9,7 @@ use rust_decimal_macros::dec;
 use crate::models::{CreateOrderPayload, DepthPayload, Order, OrderSide, QuotePayload, User};
 
 #[derive(Debug, Clone)]
+#[allow(unused)]
 pub struct Orderbook {
     pub bids: Vec<Order>,
     pub asks: Vec<Order>,

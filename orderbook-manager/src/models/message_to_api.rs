@@ -16,6 +16,8 @@ pub enum MessageToApi {
     UserBalances { payload: UserBalancesPayload },
     #[serde(rename = "QUOTE")]
     Quote { payload: QuotePayload },
+    #[serde(rename = "MARKET_CREATED")]
+    MarketCreated {payload: MarketCreated }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,6 +29,11 @@ pub struct OrderPlacedPayload {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OrderCancelledPayload {
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MarketCreated {
     pub message: Option<String>,
 }
 

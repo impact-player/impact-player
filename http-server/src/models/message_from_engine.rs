@@ -1,7 +1,7 @@
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use super::{Order};
+use super::Order;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -19,7 +19,7 @@ pub enum MessageFromEngine {
     #[serde(rename = "QUOTE")]
     Quote { payload: QuotePayload },
     #[serde(rename = "MARKET_CREATED")]
-    MarketCreated {payload: MarketCreated }
+    MarketCreated { payload: MarketCreated },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

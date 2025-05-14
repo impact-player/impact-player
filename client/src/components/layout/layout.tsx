@@ -9,7 +9,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children, activePage = 'home' }: MainLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col mx-auto max-w-7xl">
+    <div className="flex min-h-screen flex-col mx-auto max-w-7xl text-white">
       <Navbar activePage={activePage} />
       <main className="flex-1 w-full">{children}</main>
       <Footer />

@@ -1,4 +1,15 @@
-// types.ts updates
+export type Status = 'Incoming' | 'Ongoing';
+
+export interface Market {
+  name: string;
+  description?: string;
+  base_asset: string;
+  quote_asset: string;
+  start_time: string;
+  end_time: string;
+  status: Status;
+}
+
 export interface Trade {
   id?: string;
   currency_code: string;
@@ -9,7 +20,6 @@ export interface Trade {
   side?: string;
 }
 
-// Other types remain the same
 export interface KLine {
   close: string;
   end: string;

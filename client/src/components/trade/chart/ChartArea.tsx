@@ -9,11 +9,10 @@ import { getKlines } from '@/src/utils/httpClient';
 export default function ChartArea({ market }: { market: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const managerRef = useRef<ChartManager>(null);
-  const lastBarTsRef = useRef<number>(0); // in ms
+  const lastBarTsRef = useRef<number>(0);
 
-  // convert API KLine → internal bar
   const toBar = (x: KLine) => {
-    const ts = parseInt(x.end, 10) * 1000; // ms
+    const ts = parseInt(x.end, 10) * 1000;
     return {
       timestamp: ts,
       close: parseFloat(x.close),
@@ -24,7 +23,6 @@ export default function ChartArea({ market }: { market: string }) {
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    // 1) INITIALIZE
     const init = async () => {
       if (!containerRef.current) return;
       const now = Date.now();
@@ -40,7 +38,7 @@ export default function ChartArea({ market }: { market: string }) {
 
       const bars = klines.map(toBar).sort((a, b) => a.timestamp - b.timestamp);
 
-      // destroy previous if any
+      console.log('klines data: ', klines);
       managerRef.current?.destroy();
 
       // create new chart

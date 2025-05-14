@@ -1,23 +1,21 @@
-export const BidTable = ({ bids }: { bids: [string, string][] }) => {
-  // Assuming bids are already sorted (highest price first for bids)
+export const YesTable = ({ bids }: { bids: [string, string][] }) => {
   const relevantBids = bids.slice(0, 30);
   let currentTotal = 0;
 
   let bidsWithTotal: [string, string, number][] = [];
 
-  // For bids, we process in the existing order if already sorted
   for (let i = 0; i < relevantBids.length; i++) {
     const [price, quantity] = relevantBids[i];
     currentTotal += Number(quantity);
     bidsWithTotal.push([price, quantity, currentTotal]);
   }
 
-  const maxTotal = currentTotal; // Use the final accumulated total
+  const maxTotal = currentTotal;
 
   return (
     <div>
       {bidsWithTotal.map(([price, quantity, total]) => (
-        <Bid
+        <Yes
           maxTotal={maxTotal}
           total={total}
           key={price}
@@ -29,7 +27,7 @@ export const BidTable = ({ bids }: { bids: [string, string][] }) => {
   );
 };
 
-function Bid({
+function Yes({
   price,
   quantity,
   total,
@@ -65,7 +63,7 @@ function Bid({
         }}
       ></div>
       <div className={`flex justify-between text-sm w-full px-2`}>
-        <div>{price}</div>
+        <div className="">{Number(price).toFixed(5)}</div>
         <div>{quantity}</div>
       </div>
     </div>

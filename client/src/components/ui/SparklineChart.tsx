@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 
 export type SparklineDataPoint = {
   price: number;
-  timestamp: number; // Expecting milliseconds
+  timestamp: number;
 };
 
 export type SparklineData = {
@@ -12,86 +12,125 @@ export type SparklineData = {
   type: 'up' | 'down' | 'volatile';
 };
 
-// K-line data structure from your API
 type ApiKLine = {
   close: string;
-  end: string; // Timestamp in milliseconds as a string
+  end: string;
   high: string;
   low: string;
   open: string;
   quoteVolume: string;
-  start: string; // Timestamp in milliseconds as a string
+  start: string;
   trades: string;
   volume: string;
 };
 
 interface SparklineChartProps {
-  marketId: string; // e.g., "KOHLI_USDC" or whatever format your API expects for the market
+  name: string;
   height?: number;
   showDashedLine?: boolean;
-  daysHistory?: number; // Optional: how many days of history to fetch
-  interval?: string; // Optional: k-line interval e.g., "1h", "4h", "1m"
+  daysHistory?: number;
+  interval?: string;
 }
 
 const SparklineChart: React.FC<SparklineChartProps> = ({
-  marketId,
+  name,
   height = 60,
   showDashedLine = true,
-  daysHistory = 7, // Default to 7 days
-  interval = '1h', // Default to 1-hour interval
+  daysHistory = 7,
+  interval = '1h',
 }) => {
   const [chartData, setChartData] = useState<SparklineData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!marketId) {
+    if (!name) {
       setIsLoading(false);
-      setError('Market ID is required.');
-      setChartData(null); // Clear previous data if any
+      setError('Market');
+      setChartData(null);
       return;
     }
 
     const fetchKlinesData = async () => {
       setIsLoading(true);
       setError(null);
-      setChartData(null); // Clear previous data
+      setChartData(null);
 
       const endTime = Date.now();
       const startTime = endTime - daysHistory * 24 * 60 * 60 * 1000;
 
       try {
-        // Construct the URL for fetching k-lines
-        // Example: http://localhost:8080/api/v1/klines?market=SOL_USDC&interval=1h&startTime=xxxx&endTime=yyyy
-        const apiUrl = `http://localhost:8080/api/v1/klines?market=${marketId}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`;
-
+        const apiUrl = `http://localhost:8080/api/v1/klines?market=${name}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`;
         const response = await fetch(apiUrl);
+
         if (!response.ok) {
-          const errorData = await response.text();
+          let errorData = 'Failed to fetch data.';
+          try {
+            const errJson = await response.json();
+            errorData =
+              errJson.message || errJson.error || JSON.stringify(errJson);
+          } catch (parseError) {
+            errorData = await response.text();
+          }
           throw new Error(
-            `Failed to fetch k-lines: ${response.status} ${errorData}`
+            `Failed to fetch k-lines: ${response.status} ${response.statusText}. ${errorData}`
           );
         }
 
-        const klines: ApiKLine[] = await response.json();
+        const responseData = await response.json();
 
-        if (!klines || klines.length === 0) {
-          // No data returned, could be a new market or no trades in the period
+        console.log(`API response for ${name}:`, responseData);
+
+        let klinesArray: ApiKLine[];
+
+        if (Array.isArray(responseData)) {
+          klinesArray = responseData;
+        } else if (responseData && Array.isArray(responseData.data)) {
+          klinesArray = responseData.data;
+        } else if (responseData && Array.isArray(responseData.klines)) {
+          klinesArray = responseData.klines;
+        } else if (responseData && Array.isArray(responseData.results)) {
+          klinesArray = responseData.results;
+        } else {
+          if (
+            responseData &&
+            typeof responseData === 'object' &&
+            responseData !== null
+          ) {
+            if (
+              (responseData as any).success === false &&
+              (responseData as any).message
+            ) {
+              throw new Error(
+                `API returned error: ${(responseData as any).message}`
+              );
+            }
+          }
+          console.error(
+            "Fetched data is not in the expected array format, or the array is not found in a known property (e.g., 'data', 'klines', 'results'). Actual data:",
+            responseData
+          );
+          klinesArray = [];
+        }
+
+        if (!Array.isArray(klinesArray)) {
+          throw new Error('Processed klines data is not an array.');
+        }
+
+        if (klinesArray.length === 0) {
           setChartData({ data: [], type: 'volatile' });
           setIsLoading(false);
           return;
         }
 
-        // Sort by timestamp just in case they are not sorted, using 'start' or 'end'
-        // API usually returns them sorted by 'start' time. Sparkline uses 'end' time usually.
-        const sortedKlines = klines.sort(
+        const sortedKlines = [...klinesArray].sort(
           (a, b) => parseInt(a.start, 10) - parseInt(b.start, 10)
         );
 
         const processedData: SparklineDataPoint[] = sortedKlines.map(
           (kline) => ({
             price: parseFloat(kline.close),
-            timestamp: parseInt(kline.end, 10), // Use end time for the point
+            timestamp: parseInt(kline.end, 10),
           })
         );
 
@@ -99,28 +138,26 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
         if (processedData.length > 1) {
           const firstPrice = processedData[0].price;
           const lastPrice = processedData[processedData.length - 1].price;
-          if (lastPrice > firstPrice) {
-            type = 'up';
-          } else if (lastPrice < firstPrice) {
-            type = 'down';
-          }
+          if (lastPrice > firstPrice) type = 'up';
+          else if (lastPrice < firstPrice) type = 'down';
         }
 
         setChartData({ data: processedData, type });
       } catch (e: any) {
-        console.error(`Error fetching k-lines for ${marketId}:`, e);
-        setError(e.message || 'Could not fetch chart data.');
-        setChartData(null); // Ensure chart data is cleared on error
+        console.error(`Error fetching or processing k-lines for ${name}:`, e);
+        setError(e.message || 'Could not fetch or process chart data.');
+        setChartData(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchKlinesData();
-  }, [marketId, daysHistory, interval]); // Re-fetch if marketId, days, or interval changes
+  }, [name, daysHistory, interval]);
+
+  console.log('main chart data: ', chartData);
 
   if (isLoading) {
-    // Placeholder for loading state, ensuring height consistency
     return (
       <div
         className="w-full h-full bg-transparent animate-pulse"
@@ -130,7 +167,6 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   }
 
   if (error) {
-    // Placeholder for error state
     return (
       <div
         className="w-full h-full flex items-center justify-center text-red-500 text-xs"
@@ -143,7 +179,6 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   }
 
   if (!chartData || chartData.data.length === 0) {
-    // Placeholder for no data, ensuring height consistency
     return (
       <div
         className="w-full h-full flex items-center justify-center text-zinc-500 text-xs"
@@ -156,43 +191,44 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
 
   const dataPoints = chartData.data;
 
-  // Calculate min/max for scaling
   const prices = dataPoints.map((d) => d.price);
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
 
-  // Handle case where all prices are the same or only one point
   let priceRange = maxPrice - minPrice;
-  if (priceRange === 0) {
-    priceRange = minPrice > 0 ? minPrice * 0.2 : 1; // Avoid division by zero, create a small artificial range
+  // Avoid division by zero or tiny range if all prices are the same or close to zero
+  if (priceRange < 1e-9 && minPrice > 1e-9) {
+    // Effectively zero range but has a price
+    priceRange = minPrice * 0.2; // Create a small artificial range
+  } else if (priceRange < 1e-9) {
+    // Effectively zero range and zero price
+    priceRange = 1; // Default range if price is zero
   }
 
-  // Add a small buffer to the top and bottom
-  const buffer = priceRange * 0.1; // Adjust buffer if needed
+  const buffer = priceRange * 0.1; // 10% buffer
   const adjustedMin = minPrice - buffer;
   const adjustedMax = maxPrice + buffer;
   const finalRange =
-    adjustedMax - adjustedMin > 0 ? adjustedMax - adjustedMin : 1; // Ensure finalRange is not zero
+    adjustedMax - adjustedMin > 0 ? adjustedMax - adjustedMin : 1; // Ensure finalRange is positive
 
-  // Convert data points to SVG path coordinates
-  const svgWidth = 240; // SVG viewBox width (keep it consistent or make it a prop)
+  const svgWidth = 240; // Intrinsic width of the SVG drawing area
   const generatePath = () => {
     if (dataPoints.length <= 1) {
-      // Handle single point or no points for path
       if (dataPoints.length === 1) {
+        // For a single point, draw a horizontal line at its price level
         const y =
           height - ((dataPoints[0].price - adjustedMin) / finalRange) * height;
-        return `M 0 ${y} L ${svgWidth} ${y}`; // Draw a horizontal line for a single point
+        return `M 0 ${y.toFixed(2)} L ${svgWidth} ${y.toFixed(2)}`;
       }
-      return 'M 0 0'; // No path
+      return `M 0 ${height / 2}`; // Default to middle if no points
     }
     return dataPoints
       .map((point, i) => {
         const x = (i / (dataPoints.length - 1)) * svgWidth;
-        // Ensure y is a finite number, especially if finalRange was 0 or adjustedMin/Max are problematic
         let yValue = ((point.price - adjustedMin) / finalRange) * height;
-        if (!isFinite(yValue)) yValue = height / 2; // Default to middle if calculation fails
-        const y = height - yValue;
+        // Handle potential NaN/Infinity if finalRange is 0 or prices are extreme
+        if (!isFinite(yValue)) yValue = height / 2;
+        const y = height - Math.max(0, Math.min(height, yValue)); // Clamp y to be within [0, height]
         return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
       })
       .join(' ');
@@ -200,60 +236,48 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
 
   const generateFillPath = () => {
     const linePath = generatePath();
-    if (dataPoints.length === 0) return 'M 0 0 Z';
+    if (dataPoints.length === 0)
+      return `M 0 ${height} L ${svgWidth} ${height} Z`;
 
-    const firstPoint = dataPoints[0];
-    const lastPoint = dataPoints[dataPoints.length - 1];
-
-    let firstYValue = ((firstPoint.price - adjustedMin) / finalRange) * height;
-    if (!isFinite(firstYValue)) firstYValue = height / 2;
-    const firstY = height - firstYValue;
+    // Get the y-coordinate of the first point on the line path
+    const firstPathSegment = linePath.split(' ')[0]; // e.g., "M" or "M0.00"
+    const firstYCoord = parseFloat(
+      linePath.substring(firstPathSegment.length + 1).split(' ')[1]
+    );
 
     return `${linePath} L ${svgWidth.toFixed(
       2
-    )} ${height} L 0 ${height} L 0 ${firstY.toFixed(2)} Z`;
+    )} ${height} L 0 ${height} L 0 ${firstYCoord.toFixed(2)} Z`;
   };
 
   const strokeColor = chartData.type === 'down' ? '#FF3D00' : '#00C853'; // Red for down, Green for up/volatile
 
-  // Generate dashed line at the starting price
-  let startPriceY = height / 2; // Default if no data
+  let startPriceY = height / 2;
   if (dataPoints.length > 0) {
     let startPriceYValue =
       ((dataPoints[0].price - adjustedMin) / finalRange) * height;
     if (!isFinite(startPriceYValue)) startPriceYValue = height / 2;
-    startPriceY = height - startPriceYValue;
+    startPriceY = height - Math.max(0, Math.min(height, startPriceYValue));
   }
+
+  // Sanitize name for use in SVG ID. Replace non-alphanumeric characters.
+  const sanitizedname = name.replace(/[^a-zA-Z0-9]/g, '');
+  const gradientId = `gradient-${chartData.type}-${sanitizedname}`;
 
   return (
     <svg
       viewBox={`0 0 ${svgWidth} ${height}`}
-      className="w-full h-full"
+      className="w-full h-full" // Ensure SVG scales with its container
       preserveAspectRatio="none"
     >
       <defs>
-        <linearGradient
-          id={`gradient-${chartData.type}-${marketId.replace(
-            /[^a-zA-Z0-9]/g,
-            ''
-          )}`} // Sanitize marketId for ID
-          x1="0%"
-          y1="0%"
-          x2="0%"
-          y2="100%"
-        >
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor={strokeColor} stopOpacity="0.15" />
           <stop offset="100%" stopColor={strokeColor} stopOpacity="0" />
         </linearGradient>
       </defs>
 
-      <path
-        d={generateFillPath()}
-        fill={`url(#gradient-${chartData.type}-${marketId.replace(
-          /[^a-zA-Z0-9]/g,
-          ''
-        )})`}
-      />
+      <path d={generateFillPath()} fill={`url(#${gradientId})`} />
 
       {showDashedLine && dataPoints.length > 0 && (
         <line

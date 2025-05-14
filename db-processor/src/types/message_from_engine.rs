@@ -9,7 +9,7 @@ pub enum MessageFromEngine {
     AddTrade { data: AddTradePayload },
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct AddTradePayload {
     pub ticker: String,
     pub time: DateTime<Utc>,

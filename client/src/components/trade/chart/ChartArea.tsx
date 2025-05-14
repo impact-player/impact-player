@@ -5,101 +5,189 @@ import ChartControl from './ChartControl';
 import { ChartManager } from '@/src/utils/chartManager';
 import { KLine } from '@/src/utils/types';
 import { getKlines } from '@/src/utils/httpClient';
+import { UTCTimestamp } from 'lightweight-charts';
+import { useChartStore } from '@/src/utils/store/chartStore';
 
 export default function ChartArea({ market }: { market: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const managerRef = useRef<ChartManager>(null);
+  const managerRef = useRef<ChartManager | null>(null);
   const lastBarTsRef = useRef<number>(0);
+  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { interval } = useChartStore();
 
   const toBar = (x: KLine) => {
-    const ts = parseInt(x.end, 10) * 1000;
+    const tsInMillis =
+      typeof x.end === 'string' ? parseInt(x.end, 10) : Number(x.end);
     return {
-      timestamp: ts,
+      timestamp: tsInMillis,
       close: parseFloat(x.close),
       volume: parseFloat(x.volume),
+      open: x.open ? parseFloat(x.open) : undefined,
+      high: x.high ? parseFloat(x.high) : undefined,
+      low: x.low ? parseFloat(x.low) : undefined,
     };
   };
 
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
+  const initializeChart = async () => {
+    if (!containerRef.current) return;
 
-    const init = async () => {
-      if (!containerRef.current) return;
-      const now = Date.now();
-      const start = (now - 1000 * 60 * 60).toString(); // 60 min ago
-      const end = now.toString();
+    const now = Date.now();
+    let startTime;
+    switch (interval) {
+      case '1m':
+        startTime = now - 1000 * 60 * 60;
+        break;
+      case '1h':
+        startTime = now - 1000 * 60 * 60 * 24 * 7;
+        break;
+      case '1d':
+        startTime = now - 1000 * 60 * 60 * 24 * 30 * 6;
+        break;
+      case '1w':
+        startTime = now - 1000 * 60 * 60 * 24 * 365 * 2;
+        break;
+      default:
+        startTime = now - 1000 * 60 * 60;
+    }
 
-      let klines: KLine[] = [];
-      try {
-        klines = await getKlines(market, '1m', start, end);
-      } catch (e) {
-        console.error('failed to fetch initial history', e);
+    let klines: KLine[] = [];
+    try {
+      klines = await getKlines(
+        market,
+        interval,
+        startTime.toString(),
+        now.toString()
+      );
+    } catch (e) {
+      console.error('Failed to fetch initial history:', e);
+      return;
+    }
+
+    const bars = klines.map(toBar).sort((a, b) => a.timestamp - b.timestamp);
+
+    managerRef.current?.destroy();
+
+    managerRef.current = new ChartManager(containerRef.current, bars, {
+      background: '#0e0f14',
+      color: 'white',
+    });
+
+    lastBarTsRef.current =
+      bars.length > 0 ? bars[bars.length - 1].timestamp : now;
+  };
+
+  const fetchLatestDataAndUpdate = async () => {
+    console.log(
+      `[${new Date().toLocaleTimeString()}] fetchLatestDataAndUpdate called`
+    ); // 1. Is it running?
+
+    if (!managerRef.current) {
+      console.log('Chart manager not initialized, skipping fetch.');
+      return;
+    }
+
+    const start = (lastBarTsRef.current + 1).toString();
+    const now = Date.now().toString();
+
+    let klines: KLine[] = [];
+    try {
+      klines = await getKlines(market, interval, start, now);
+      console.log(
+        `[${new Date().toLocaleTimeString()}] Klines fetched:`,
+        klines
+      ); // 2. What data did we get?
+    } catch (e) {
+      console.error(
+        `[${new Date().toLocaleTimeString()}] Failed to fetch latest data:`,
+        e
+      );
+      return;
+    }
+
+    if (klines.length > 0) {
+      const newBars = klines
+        .map(toBar)
+        .sort((a, b) => a.timestamp - b.timestamp);
+
+      const latestBar = newBars[newBars.length - 1];
+
+      const barTimeForChart = Math.floor(
+        latestBar.timestamp / 1000
+      ) as UTCTimestamp;
+
+      const updateData: any = {
+        time: barTimeForChart,
+        open: latestBar.open,
+        high: latestBar.high,
+        low: latestBar.low,
+        close: latestBar.close,
+        volume: latestBar.volume,
+      };
+
+      console.log(
+        `[${new Date().toLocaleTimeString()}] Chart updateData:`,
+        updateData
+      ); // 3. What are we sending to ChartManager?
+
+      const isNewCandlePeriod = latestBar.timestamp > lastBarTsRef.current;
+
+      // This newCandleInitiated flag is optional, depends on ChartManager's needs
+      // if (isNewCandlePeriod) {
+      //   updateData.newCandleInitiated = true;
+      // }
+
+      managerRef.current?.update(updateData);
+      console.log(
+        `[${new Date().toLocaleTimeString()}] Called managerRef.current.update()`
+      ); // 4. Did we call update?
+
+      if (isNewCandlePeriod) {
+        lastBarTsRef.current = latestBar.timestamp;
       }
+    } else {
+      console.log(
+        `[${new Date().toLocaleTimeString()}] No new klines received.`
+      ); // 5. Log if no data
+    }
+  };
 
-      const bars = klines.map(toBar).sort((a, b) => a.timestamp - b.timestamp);
-
-      console.log('klines data: ', klines);
-      managerRef.current?.destroy();
-
-      // create new chart
-      managerRef.current = new ChartManager(containerRef.current, bars, {
-        background: '#0e0f14',
-        color: 'white',
-      });
-
-      // remember last timestamp
-      lastBarTsRef.current = bars[bars.length - 1]?.timestamp ?? now;
-    };
-
-    // 2) REAL-TIME UPDATES
-    const startUpdates = () => {
-      intervalId = setInterval(async () => {
-        const mgr = managerRef.current;
-        if (!mgr) return;
-
-        const since = lastBarTsRef.current + 1;
-        const until = Date.now();
-
-        let klines: KLine[] = [];
-        try {
-          klines = await getKlines(
-            market,
-            '1m',
-            Math.floor(since).toString(),
-            Math.floor(until).toString()
-          );
-        } catch (e) {
-          console.error('failed to fetch new bar', e);
-          return;
-        }
-
-        if (klines.length === 0) return;
-
-        // take the newest returned bar
-        const newest = toBar(klines[klines.length - 1]);
-
-        // prepare payload for your ChartManager.update()
-        const payload = {
-          close: newest.close,
-          volume: newest.volume,
-          // ChartManager.update() expects `time` in **seconds**
-          time: Math.floor(newest.timestamp / 1000),
-          newCandleInitiated: newest.timestamp > lastBarTsRef.current,
-        };
-
-        mgr.update(payload);
-        lastBarTsRef.current = newest.timestamp;
-      }, 1_000);
-    };
-
-    init().then(startUpdates);
-
-    // cleanup on unmount or market change
+  useEffect(() => {
+    console.log(
+      `[EFFECT] Initializing chart and setting up for ${market} @ ${interval}`
+    );
+    initializeChart();
     return () => {
-      clearInterval(intervalId);
+      console.log(
+        `[EFFECT CLEANUP] Destroying chart for ${market} @ ${interval}`
+      );
       managerRef.current?.destroy();
+      managerRef.current = null;
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
     };
-  }, [market]);
+  }, [market, interval]);
+
+  useEffect(() => {
+    if (intervalIdRef.current) {
+      clearInterval(intervalIdRef.current);
+    }
+    console.log(
+      `[EFFECT INTERVAL] Setting up polling interval for ${market} @ ${interval}`
+    );
+    intervalIdRef.current = setInterval(fetchLatestDataAndUpdate, 1000);
+    return () => {
+      if (intervalIdRef.current) {
+        console.log(
+          `[EFFECT INTERVAL CLEANUP] Clearing polling interval for ${market} @ ${interval}`
+        );
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
+    };
+  }, [market, interval]);
 
   return (
     <>

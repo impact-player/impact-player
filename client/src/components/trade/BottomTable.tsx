@@ -11,19 +11,20 @@ import { Trade } from '@/src/utils/types';
 import { getTrades } from '@/src/utils/httpClient';
 import { SignalingManager } from '@/src/utils/SignalingManager';
 
-export default function BottomTable() {
+export default function BottomTable({ market }: { market: string }) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const market = 'SOL_USDC';
-  const room = `trade@${market}`;
+  // Assert this as the template‑literal type TypeScript expects:
+  const room = `trade@${market}` as `trade@${string}`;
 
   const fetchTrades = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getTrades('SOL/USD');
+      // Pass through your dynamic market instead of a fixed string
+      const response = await getTrades(market);
       if (response.success) {
         setTrades(response.data.reverse());
       } else {
@@ -51,8 +52,6 @@ export default function BottomTable() {
       side: string;
       timestamp: number;
     }) => {
-      console.log('Real-time trade update:', data);
-
       const newTrade: Trade = {
         id: Date.now().toString(),
         price: parseFloat(data.price),
@@ -67,15 +66,15 @@ export default function BottomTable() {
 
     const mgr = SignalingManager.getInstance();
 
+    // Now TS knows `room` matches `trade@${string}` ✅
     mgr.registerTradeCallback(room, onTrade);
-
     mgr.subscribe(room);
 
     return () => {
       mgr.unsubscribe(room);
       mgr.deRegisterTradeCallback(room, onTrade);
     };
-  }, []);
+  }, [market]);
 
   return (
     <div className="h-48 border-t border-border/20">

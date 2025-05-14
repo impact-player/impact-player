@@ -1,23 +1,21 @@
-export const AskTable = ({ asks }: { asks: [string, string][] }) => {
-  // Assuming asks are already sorted (lowest price first for asks)
+export const NoTable = ({ asks }: { asks: [string, string][] }) => {
   const relevantAsks = asks.slice(0, 30);
   let currentTotal = 0;
 
   let asksWithTotal: [string, string, number][] = [];
 
-  // Process asks in the order they come in if already sorted
   for (let i = 0; i < relevantAsks.length; i++) {
     const [price, quantity] = relevantAsks[i];
     currentTotal += Number(quantity);
     asksWithTotal.push([price, quantity, currentTotal]);
   }
 
-  const maxTotal = currentTotal; // Use the final accumulated total
+  const maxTotal = currentTotal;
 
   return (
     <div>
       {asksWithTotal.map(([price, quantity, total]) => (
-        <Ask
+        <No
           maxTotal={maxTotal}
           key={price}
           price={price}
@@ -29,7 +27,7 @@ export const AskTable = ({ asks }: { asks: [string, string][] }) => {
   );
 };
 
-function Ask({
+function No({
   price,
   quantity,
   total,
@@ -67,7 +65,7 @@ function Ask({
       ></div>
       <div className="flex justify-between text-sm w-full px-2">
         <div>{quantity}</div>
-        <div>{price}</div>
+        <div className="">{Number(price).toFixed(5)}</div>
       </div>
     </div>
   );

@@ -346,7 +346,6 @@ impl OrderbookWorker {
                 }
 
                 orderbook.asks.remove(ask_index);
-                order_found = true;
             }
         }
 

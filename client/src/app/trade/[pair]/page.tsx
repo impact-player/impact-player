@@ -20,8 +20,8 @@ export default async function TradingPage({
 
       <div className="flex-1 flex flex-col md:flex-row">
         <div className="w-full md:w-3/4 border-r border-border/20 flex flex-col p-4">
-          <ChartArea market={'SOL'} />
-          <BottomTable />
+          <ChartArea market={pair} />
+          <BottomTable market={pair} />
         </div>
 
         <div className="w-full md:w-2/6 border-t md:border-t-0 border-border/20 flex flex-col h-full">

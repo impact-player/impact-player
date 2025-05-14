@@ -1,12 +1,23 @@
+'use client';
+
 import { Button } from '@/src/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 import { ChartIcon, BookIcon, SettingsIcon } from '@/src/components/icons';
+import { useChartStore } from '@/src/utils/store/chartStore';
 
 export default function ChartControl() {
+  const { interval, chartType, setInterval, setChartType } = useChartStore();
+
   return (
     <div className="border-b border-border/20 flex items-center p-2">
       <div className="flex items-center gap-4">
-        <Tabs defaultValue="chart">
+        <Tabs
+          defaultValue={chartType}
+          value={chartType}
+          onValueChange={(value) =>
+            setChartType(value as 'chart' | 'book' | 'depth' | 'equalizer')
+          }
+        >
           <TabsList className="bg-background border border-border/20 rounded-md">
             <TabsTrigger
               value="chart"
@@ -39,46 +50,36 @@ export default function ChartControl() {
 
         <div className="flex items-center gap-2 text-sm">
           <Button
-            variant="ghost"
-            size="sm"
-            className="px-2 py-1 h-8 bg-secondary/50 rounded-md"
-          >
-            1s
-          </Button>
-          <Button
-            variant="ghost"
+            variant={interval === '1m' ? 'secondary' : 'ghost'}
             size="sm"
             className="px-2 py-1 h-8 rounded-md"
+            onClick={() => setInterval('1m')}
           >
             1m
           </Button>
           <Button
-            variant="ghost"
+            variant={interval === '1h' ? 'secondary' : 'ghost'}
             size="sm"
             className="px-2 py-1 h-8 rounded-md"
-          >
-            15m
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="px-2 py-1 h-8 rounded-md"
+            onClick={() => setInterval('1h')}
           >
             1h
           </Button>
           <Button
-            variant="ghost"
+            variant={interval === '1d' ? 'secondary' : 'ghost'}
             size="sm"
             className="px-2 py-1 h-8 rounded-md"
-          >
-            4h
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="px-2 py-1 h-8 rounded-md"
+            onClick={() => setInterval('1d')}
           >
             1d
+          </Button>
+          <Button
+            variant={interval === '1w' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="px-2 py-1 h-8 rounded-md"
+            onClick={() => setInterval('1w')}
+          >
+            1w
           </Button>
         </div>
       </div>

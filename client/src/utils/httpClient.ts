@@ -32,11 +32,21 @@ export async function getKlines(
   interval: string,
   startTime: string,
   endTime: string
-): Promise<KLine[]> {
-  const response = await axios.get(
-    `${BASE_URL}/klines?market=${market}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`
-  );
+): Promise<any[]> {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/klines?market=${market}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`
+    );
 
-  const data: KLine[] = response.data.data;
-  return data.sort((x, y) => (Number(x.end) < Number(y.end) ? -1 : 1));
+    const data = await response.data;
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch klines');
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('Error fetching klines:', error);
+    throw error;
+  }
 }

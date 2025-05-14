@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getDepth } from '@/src/utils/httpClient';
-import { AskTable } from './AskTable';
-import { BidTable } from './BidTable';
+import { NoTable } from './NoTable';
+import { YesTable } from './YesTable';
 import { SignalingManager } from '@/src/utils/SignalingManager';
 
 export default function Depth({ market }: { market: string }) {
@@ -15,7 +15,6 @@ export default function Depth({ market }: { market: string }) {
       bids: [string, string][];
       asks: [string, string][];
     }) => {
-      console.log('real-time depth update:', data);
       if (data.bids && data.bids.length > 0) {
         setBids(data.bids);
       }
@@ -51,14 +50,14 @@ export default function Depth({ market }: { market: string }) {
         <div className="w-1/2 pr-1 flex flex-col">
           {asks && (
             <div className="flex-grow overflow-y-auto">
-              <AskTable asks={asks.slice(0, 50)} />
+              <NoTable asks={asks.slice(0, 50)} />
             </div>
           )}
         </div>
         <div className="w-1/2 pl-1 flex flex-col">
           {bids && (
             <div className="flex-grow overflow-y-auto">
-              <BidTable bids={bids.slice(0, 50)} />
+              <YesTable bids={bids.slice(0, 50)} />
             </div>
           )}
         </div>
@@ -73,17 +72,17 @@ function TableHeader() {
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center">
-            <div className="w-3 h-3 bg-red-800 mr-1" /> Asks
+            <div className="w-3 h-3 bg-red-800 mr-1" /> No
           </div>
           <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-800 mr-1" /> Bids
+            <div className="w-3 h-3 bg-green-800 mr-1" /> Yes
           </div>
         </div>
       </div>
       <div className="flex text-xs text-muted-foreground mb-2">
         <div className="flex-grow text-left">Size</div>
-        <div className="flex-grow text-center">Ask</div>
-        <div className="flex-grow text-center">Bid</div>
+        <div className="flex-grow text-center">No</div>
+        <div className="flex-grow text-center">Yes</div>
         <div className="flex-grow text-right">Size</div>
       </div>
     </>

@@ -430,7 +430,7 @@ const PriceTable = () => {
                   {/* Graph column */}
                   <Link href={market.link} className="w-full h-full" passHref>
                     <SparklineChart
-                      marketId={`<span class="math-inline">\{market\.base\_asset\}\_</span>{market.quote_asset}`} // Or your API's expected format
+                      name={market.name} // Or your API's expected format
                       // Optionally pass daysHistory or interval if you want to override defaults
                       // daysHistory={7}
                       // interval="1h"

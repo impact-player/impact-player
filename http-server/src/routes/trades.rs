@@ -9,17 +9,28 @@ use sqlx::Row;
 
 use crate::{models::GetTradesPayload, state::AppState};
 
+fn sanitize_ticker(ticker: &str) -> String {
+    ticker.replace(|c: char| !c.is_alphanumeric() && c != '_', "_") 
+          .to_lowercase()
+}
+
 pub async fn get_trades(
     State(state): State<Arc<AppState>>,
-    Query(_params): Query<GetTradesPayload>,
+    Query(params): Query<GetTradesPayload>,
 ) -> Json<Value> {
-    let sql = r#"
-        SELECT time, price, quantity, volume, currency_code
-        FROM sol_prices
-        ORDER BY time ASC
-    "#;
+    // Sanitize the market ticker for table name construction
+    let sanitized_ticker = sanitize_ticker(&params.market);
+    let table_name = format!("prices_{}", sanitized_ticker);
 
-    let rows = sqlx::query(sql).fetch_all(&*state.db_pool).await;
+    // Use the prices_* table that's created dynamically
+    let sql = format!(
+        r#"SELECT "time", price, quantity, volume, market_ticker 
+           FROM public.{} 
+           ORDER BY "time" ASC"#,
+        table_name
+    );
+
+    let rows = sqlx::query(&sql).fetch_all(&*state.db_pool).await;
 
     match rows {
         Ok(records) => {
@@ -34,7 +45,7 @@ pub async fn get_trades(
                         "price":          r.get::<f64, _>("price"),
                         "quantity":       r.get::<f64, _>("quantity"),
                         "volume":         volume,
-                        "currency_code":  r.get::<String, _>("currency_code"),
+                        "market_ticker":  r.get::<String, _>("market_ticker"),
                     })
                 })
                 .collect();
@@ -48,7 +59,7 @@ pub async fn get_trades(
             tracing::error!("DB error fetching trades: {:?}", e);
             Json(json!({
                 "success": false,
-                "error":   "Failed to query sol_prices"
+                "error":   format!("Failed to query trades table prices_{}", sanitized_ticker)
             }))
         }
     }

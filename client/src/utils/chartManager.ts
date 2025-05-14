@@ -13,6 +13,7 @@ export class ChartManager {
   private volumeSeries: ISeriesApi<'Histogram'>;
   private lastUpdateTime: number = 0;
   private chart: any;
+  private isDisposed: boolean = false;
   private currentBar: {
     close: number | null;
     volume: number | null;
@@ -144,6 +145,11 @@ export class ChartManager {
   }
 
   public update(updatedPrice: any) {
+    if (this.isDisposed || !this.chart) {
+      console.warn('Attempted to update a disposed chart');
+      return;
+    }
+
     if (!this.lastUpdateTime) {
       this.lastUpdateTime = new Date().getTime();
     }
@@ -176,6 +182,17 @@ export class ChartManager {
   }
 
   public destroy() {
-    this.chart.remove();
+    if (this.isDisposed || !this.chart) {
+      console.debug('Chart already disposed or null');
+      return;
+    }
+
+    try {
+      this.chart.remove();
+      this.chart = null;
+      this.isDisposed = true;
+    } catch (error) {
+      console.error('Error while destroying chart:', error);
+    }
   }
 }

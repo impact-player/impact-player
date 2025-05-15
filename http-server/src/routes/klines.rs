@@ -9,8 +9,9 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 
 fn sanitize_ticker(ticker: &str) -> String {
-    ticker.replace(|c: char| !c.is_alphanumeric() && c != '_', "_") 
-          .to_lowercase()
+    ticker
+        .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
+        .to_lowercase()
 }
 
 pub async fn get_klines(
@@ -19,7 +20,7 @@ pub async fn get_klines(
 ) -> Json<Value> {
     let interval = params.interval.as_str();
     let sanitized_ticker = sanitize_ticker(&params.market);
-    
+
     // The table name follows the format from your setup code
     let table_name = format!("klines_{}_{}", interval, sanitized_ticker);
 

@@ -17,7 +17,7 @@ pub enum MessageToApi {
     #[serde(rename = "QUOTE")]
     Quote { payload: QuotePayload },
     #[serde(rename = "MARKET_CREATED")]
-    MarketCreated {payload: MarketCreated }
+    MarketCreated { payload: MarketCreated },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

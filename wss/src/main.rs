@@ -1,7 +1,4 @@
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{routing::get, Router};
 use std::{net::SocketAddr, sync::Arc};
 use tracing::info;
 
@@ -13,7 +10,7 @@ mod websocket;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
-    
+
     let state = Arc::new(types::AppState::new());
 
     let app = Router::new()

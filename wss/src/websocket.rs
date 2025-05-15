@@ -35,19 +35,26 @@ pub async fn handle_socket(socket: WebSocket, state: SharedState) {
                             .await
                             {
                                 Ok(join_handle) => {
-                                    client_room_forwarding_tasks.insert(room_name.clone(), join_handle);
+                                    client_room_forwarding_tasks
+                                        .insert(room_name.clone(), join_handle);
                                     info!("Client subscribed to room: {}", room_name);
                                 }
                                 Err(e) => {
-                                    error!("Failed to subscribe client to room {}: {}", room_name, e);
+                                    error!(
+                                        "Failed to subscribe client to room {}: {}",
+                                        room_name, e
+                                    );
                                 }
                             }
                         }
                         ClientRequest::Unsubscribe { payload } => {
                             let room_name = payload.room.clone();
-                            if let Some(task_handle) = client_room_forwarding_tasks.remove(&room_name) {
+                            if let Some(task_handle) =
+                                client_room_forwarding_tasks.remove(&room_name)
+                            {
                                 task_handle.abort(); // Stop the forwarding task for this client and room
-                                decrement_room_subscriber_count(state.clone(), room_name.clone()).await;
+                                decrement_room_subscriber_count(state.clone(), room_name.clone())
+                                    .await;
                                 info!("Client unsubscribed from room: {}", room_name);
                             } else {
                                 info!(
@@ -59,9 +66,11 @@ pub async fn handle_socket(socket: WebSocket, state: SharedState) {
                         ClientRequest::SendMessage { payload } => {
                             let room_name = payload.room.clone();
                             let message_content = payload.message.clone();
-                            
+
                             // Using the new redis_manager approach
-                            if let Err(e) = redis_manager.publish_message(&room_name, &message_content) {
+                            if let Err(e) =
+                                redis_manager.publish_message(&room_name, &message_content)
+                            {
                                 error!("Failed to send message to room {}: {}", room_name, e);
                             } else {
                                 info!("Client message published to Redis room '{}'", room_name);
@@ -71,7 +80,9 @@ pub async fn handle_socket(socket: WebSocket, state: SharedState) {
                     Err(e) => {
                         error!("Failed to parse client message: {}", e);
                         let mut sender_guard = shared_websocket_sender.lock().await;
-                        let error_msg = Message::Text(format!("{{\"error\":\"Failed to parse message: {}\"}}", e).into());
+                        let error_msg = Message::Text(
+                            format!("{{\"error\":\"Failed to parse message: {}\"}}", e).into(),
+                        );
                         if sender_guard.send(error_msg).await.is_err() {
                             error!("Failed to send parsing error to client, client might be disconnected.");
                             break;
@@ -84,29 +95,33 @@ pub async fn handle_socket(socket: WebSocket, state: SharedState) {
                 break;
             }
             Message::Ping(ping_data) => {
-                 let mut sender_guard = shared_websocket_sender.lock().await;
-                 if sender_guard.send(Message::Pong(ping_data)).await.is_err(){
+                let mut sender_guard = shared_websocket_sender.lock().await;
+                if sender_guard.send(Message::Pong(ping_data)).await.is_err() {
                     error!("Failed to send pong, client might be disconnected.");
                     break;
-                 }
+                }
             }
             Message::Pong(_) => {
                 info!("Received pong from client.");
             }
             Message::Binary(_) => {
-                 error!("Received unexpected binary message from client.");
+                error!("Received unexpected binary message from client.");
             }
         }
     }
 
     info!("Client disconnected. Cleaning up client resources...");
-    let subscribed_rooms_on_disconnect: Vec<String> = client_room_forwarding_tasks.keys().cloned().collect();
+    let subscribed_rooms_on_disconnect: Vec<String> =
+        client_room_forwarding_tasks.keys().cloned().collect();
     for room_name in subscribed_rooms_on_disconnect {
         if let Some(task_handle) = client_room_forwarding_tasks.remove(&room_name) {
             task_handle.abort();
         }
         decrement_room_subscriber_count(state.clone(), room_name.clone()).await;
-        info!("Auto-unsubscribed client from room {} due to disconnect", room_name);
+        info!(
+            "Auto-unsubscribed client from room {} due to disconnect",
+            room_name
+        );
     }
     info!("Client cleanup complete.");
 }
@@ -148,12 +163,12 @@ async fn subscribe_client_to_room(
                         room: room_clone_for_task.clone(),
                         data: payload,
                     };
-                    
+
                     match serde_json::to_string(&server_msg) {
                         Ok(json_msg) => {
                             let mut tx_guard = websocket_tx.lock().await;
                             if tx_guard.send(Message::Text(json_msg.into())).await.is_err() {
-                                break; 
+                                break;
                             }
                         }
                         Err(e) => {
@@ -175,7 +190,7 @@ async fn subscribe_client_to_room(
                         "Forwarding task for room '{}': Broadcast channel closed. This task will stop.", 
                         room_clone_for_task
                     );
-                    break; 
+                    break;
                 }
             }
         }

@@ -5,7 +5,8 @@ use std::{
 
 use crate::{
     models::{
-        Balance, MarketCreated, MessageFromApi, MessageToApi, OrderCancelledPayload, OrderbookMessage, User, UserBalancesPayload
+        Balance, MarketCreated, MessageFromApi, MessageToApi, OrderCancelledPayload,
+        OrderbookMessage, User, UserBalancesPayload,
     },
     services::RedisManager,
 };
@@ -95,8 +96,7 @@ impl Engine {
                                 message: Some("Market successfully created".to_string()),
                             },
                         };
-                        let _ = RedisManager::instance()
-                            .send_to_api(&client_id, &response);
+                        let _ = RedisManager::instance().send_to_api(&client_id, &response);
                     }
                     Err(err) => {
                         let response = MessageToApi::OrderCancelled {
@@ -104,8 +104,7 @@ impl Engine {
                                 message: Some(format!("Failed to create market: {}", err)),
                             },
                         };
-                        let _ = RedisManager::instance()
-                            .send_to_api(&client_id, &response);
+                        let _ = RedisManager::instance().send_to_api(&client_id, &response);
                     }
                 }
             }

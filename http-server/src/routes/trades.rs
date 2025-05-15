@@ -10,8 +10,9 @@ use sqlx::Row;
 use crate::{models::GetTradesPayload, state::AppState};
 
 fn sanitize_ticker(ticker: &str) -> String {
-    ticker.replace(|c: char| !c.is_alphanumeric() && c != '_', "_") 
-          .to_lowercase()
+    ticker
+        .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
+        .to_lowercase()
 }
 
 pub async fn get_trades(

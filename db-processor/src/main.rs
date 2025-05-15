@@ -20,8 +20,7 @@ async fn main() -> Result<()> {
     let redis_manager = RedisManager::new();
     let mut conn = redis_manager.get_connection()?;
 
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPool::connect(&database_url).await?;
 
     let refresh_pool = pool.clone();
@@ -44,7 +43,10 @@ async fn main() -> Result<()> {
 
             if parsed.message_type == "TRADE_ADDED" {
                 if let Err(e) = process_trade_dynamically(&pool, &parsed.data).await {
-                    error!("Failed to process trade for {}: {:?}", parsed.data.ticker, e);
+                    error!(
+                        "Failed to process trade for {}: {:?}",
+                        parsed.data.ticker, e
+                    );
                 } else {
                     info!("Processed trade for {}", parsed.data.ticker);
                 }

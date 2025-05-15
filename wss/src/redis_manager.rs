@@ -11,29 +11,40 @@ impl RedisManager {
     }
 
     pub fn publish_message(&self, room: &str, message: &str) -> Result<(), String> {
-        let mut conn = self.client
+        let mut conn = self
+            .client
             .get_connection()
             .map_err(|e| format!("Failed to get Redis connection: {}", e))?;
-        
+
         conn.publish(room, message)
             .map_err(|e| format!("Failed to publish message to Redis room '{}': {}", room, e))?;
-        
+
         Ok(())
     }
 
-    pub fn start_listener(client: Client, room: String, sender: tokio::sync::broadcast::Sender<String>) {
+    pub fn start_listener(
+        client: Client,
+        room: String,
+        sender: tokio::sync::broadcast::Sender<String>,
+    ) {
         std::thread::spawn(move || {
             let mut conn = match client.get_connection() {
                 Ok(c) => c,
                 Err(err) => {
-                    error!("Redis listener for room '{}': Connection error: {}. Listener not started.", room, err);
+                    error!(
+                        "Redis listener for room '{}': Connection error: {}. Listener not started.",
+                        room, err
+                    );
                     return;
                 }
             };
 
             let mut pubsub = conn.as_pubsub();
             if let Err(err) = pubsub.subscribe(&room) {
-                error!("Redis listener for room '{}': Subscribe error: {}. Listener stopping.", room, err);
+                error!(
+                    "Redis listener for room '{}': Subscribe error: {}. Listener stopping.",
+                    room, err
+                );
                 return;
             }
 
@@ -65,7 +76,10 @@ impl RedisManager {
             }
 
             if let Err(err) = pubsub.unsubscribe(&room) {
-                error!("Redis listener for room '{}': Unsubscribe error: {}", room, err);
+                error!(
+                    "Redis listener for room '{}': Unsubscribe error: {}",
+                    room, err
+                );
             }
         });
     }

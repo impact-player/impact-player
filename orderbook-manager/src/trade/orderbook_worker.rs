@@ -277,24 +277,40 @@ impl OrderbookWorker {
             }
         }
 
-        let trade_info = json!({
-            "price": payload.price,
-            "quantity": filled_qty,
-            "side": payload.side,
-            "timestamp": Utc::now().timestamp()
-        });
+        if filled_qty > Decimal::ZERO {
+            let trade_info = json!({
+                "price": payload.price,
+                "quantity": filled_qty,
+                "side": payload.side,
+                "timestamp": Utc::now().timestamp()
+            });
 
-        let db_info = AddTradePayload {
-            data: TradeData {
-                ticker: payload.market.clone(),
-                time: Utc::now(),
-                price: payload.price,
-                quantity: payload.quantity,
-            },
-        };
+            let ticker_info = json!({
+                "stream": format!("ticker@{}", payload.market),
+                "data": {
+                    "s": payload.market,
+                    "p": payload.price.to_string(),
+                    "q": filled_qty.to_string(),
+                    "t": Utc::now().timestamp(),
+                    "e": "ticker"
+                }
+            });
 
-        let _ = redis_manager.publish_message(&format!("trade@{}", payload.market), &trade_info);
-        let _ = redis_manager.push_message_to_db(&db_info);
+            let db_info = AddTradePayload {
+                data: TradeData {
+                    ticker: payload.market.clone(),
+                    time: Utc::now(),
+                    price: payload.price,
+                    quantity: payload.quantity,
+                },
+            };
+
+            let _ =
+                redis_manager.publish_message(&format!("trade@{}", payload.market), &trade_info);
+            let _ =
+                redis_manager.publish_message(&format!("ticker@{}", payload.market), &ticker_info);
+            let _ = redis_manager.push_message_to_db(&db_info);
+        }
     }
 
     fn handle_cancel_order(

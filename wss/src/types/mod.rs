@@ -45,14 +45,13 @@ impl AppState {
     pub fn new() -> Self {
         let redis_client = redis::Client::open("redis://127.0.0.1/")
             .expect("Failed to connect to Redis. Ensure Redis is running on redis://127.0.0.1/");
-        
+
         AppState {
             channels: Mutex::new(HashMap::new()),
             redis_client,
         }
     }
 }
-
 
 pub struct ChannelInfo {
     pub sender: broadcast::Sender<String>,

@@ -7,7 +7,8 @@ import { useChartStore } from '@/src/utils/store/chartStore';
 import { MessageCircle } from 'lucide-react';
 
 export default function ChartControl() {
-  const { interval, chartType, setInterval, setChartType } = useChartStore();
+  const { interval, chartType, view, setInterval, setChartType, toggleView } =
+    useChartStore();
 
   return (
     <div className="border-b border-border/20 flex items-center p-2">
@@ -70,8 +71,9 @@ export default function ChartControl() {
         <div>
           <div className="bg-background border border-border/20 rounded-md">
             <Button
-              value="chart"
-              className="data-[state=active]:bg-secondary rounded-md hover:cursor-pointer"
+              variant={view === 'chat' ? 'secondary' : 'ghost'}
+              className="rounded-md hover:cursor-pointer"
+              onClick={toggleView}
             >
               <MessageCircle className="h-4 w-4 mr-1" />
               Live Chat

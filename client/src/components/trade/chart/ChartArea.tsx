@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import ChartControl from './ChartControl';
 import { ChartManager } from '@/src/utils/chartManager';
 import { KLine } from '@/src/utils/types';
@@ -14,7 +15,7 @@ export default function ChartArea({ market }: { market: string }) {
   const lastBarTsRef = useRef<number>(0);
   const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { interval } = useChartStore();
+  const { interval, view } = useChartStore();
 
   const toBar = (x: KLine) => {
     const tsInMillis =
@@ -153,15 +154,24 @@ export default function ChartArea({ market }: { market: string }) {
     };
   }, [market, interval]);
 
+  const ChatArea = dynamic(() => import('../chat/ChatArea'), { ssr: false });
+
   return (
     <>
       <ChartControl />
       <div className="flex-1 bg-card flex items-center justify-center">
         <div
           ref={containerRef}
-          className="text-muted-foreground w-full h-full"
+          className={`text-muted-foreground w-full h-full ${
+            view === 'chat' ? 'hidden' : 'block'
+          }`}
           style={{ minHeight: '300px' }}
         />
+        {view === 'chat' && (
+          <div className="w-full h-full" style={{ minHeight: '300px' }}>
+            <ChatArea market={market} />
+          </div>
+        )}
       </div>
     </>
   );

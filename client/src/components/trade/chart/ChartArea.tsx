@@ -78,10 +78,6 @@ export default function ChartArea({ market }: { market: string }) {
   };
 
   const fetchLatestDataAndUpdate = async () => {
-    console.log(
-      `[${new Date().toLocaleTimeString()}] fetchLatestDataAndUpdate called`
-    ); // 1. Is it running?
-
     if (!managerRef.current) {
       console.log('Chart manager not initialized, skipping fetch.');
       return;
@@ -93,10 +89,6 @@ export default function ChartArea({ market }: { market: string }) {
     let klines: KLine[] = [];
     try {
       klines = await getKlines(market, interval, start, now);
-      console.log(
-        `[${new Date().toLocaleTimeString()}] Klines fetched:`,
-        klines
-      ); // 2. What data did we get?
     } catch (e) {
       console.error(
         `[${new Date().toLocaleTimeString()}] Failed to fetch latest data:`,
@@ -125,42 +117,19 @@ export default function ChartArea({ market }: { market: string }) {
         volume: latestBar.volume,
       };
 
-      console.log(
-        `[${new Date().toLocaleTimeString()}] Chart updateData:`,
-        updateData
-      ); // 3. What are we sending to ChartManager?
-
       const isNewCandlePeriod = latestBar.timestamp > lastBarTsRef.current;
 
-      // This newCandleInitiated flag is optional, depends on ChartManager's needs
-      // if (isNewCandlePeriod) {
-      //   updateData.newCandleInitiated = true;
-      // }
-
       managerRef.current?.update(updateData);
-      console.log(
-        `[${new Date().toLocaleTimeString()}] Called managerRef.current.update()`
-      ); // 4. Did we call update?
 
       if (isNewCandlePeriod) {
         lastBarTsRef.current = latestBar.timestamp;
       }
-    } else {
-      console.log(
-        `[${new Date().toLocaleTimeString()}] No new klines received.`
-      ); // 5. Log if no data
     }
   };
 
   useEffect(() => {
-    console.log(
-      `[EFFECT] Initializing chart and setting up for ${market} @ ${interval}`
-    );
     initializeChart();
     return () => {
-      console.log(
-        `[EFFECT CLEANUP] Destroying chart for ${market} @ ${interval}`
-      );
       managerRef.current?.destroy();
       managerRef.current = null;
       if (intervalIdRef.current) {
@@ -174,15 +143,10 @@ export default function ChartArea({ market }: { market: string }) {
     if (intervalIdRef.current) {
       clearInterval(intervalIdRef.current);
     }
-    console.log(
-      `[EFFECT INTERVAL] Setting up polling interval for ${market} @ ${interval}`
-    );
+
     intervalIdRef.current = setInterval(fetchLatestDataAndUpdate, 1000);
     return () => {
       if (intervalIdRef.current) {
-        console.log(
-          `[EFFECT INTERVAL CLEANUP] Clearing polling interval for ${market} @ ${interval}`
-        );
         clearInterval(intervalIdRef.current);
         intervalIdRef.current = null;
       }

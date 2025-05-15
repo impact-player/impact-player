@@ -174,16 +174,12 @@ export default function MarketsTable() {
                     {market.status}
                   </span>
                 </td>
-                {/* <td className="py-5 px-4 text-right rounded-r font-medium">
-                  {formatEndTime(market.end_time)}
-                </td> */}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination */}
       <div className="flex justify-center mt-10 space-x-2 items-center">
         <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white">
           &lt;

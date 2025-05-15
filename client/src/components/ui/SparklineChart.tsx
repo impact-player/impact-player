@@ -25,7 +25,8 @@ type ApiKLine = {
 };
 
 interface SparklineChartProps {
-  name: string;
+  baseAsset: string;
+  quoteAsset: string;
   height?: number;
   showDashedLine?: boolean;
   daysHistory?: number;
@@ -33,7 +34,8 @@ interface SparklineChartProps {
 }
 
 const SparklineChart: React.FC<SparklineChartProps> = ({
-  name,
+  baseAsset,
+  quoteAsset,
   height = 60,
   showDashedLine = true,
   daysHistory = 7,
@@ -44,7 +46,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!name) {
+    if (!baseAsset) {
       setIsLoading(false);
       setError('Market');
       setChartData(null);
@@ -60,7 +62,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
       const startTime = endTime - daysHistory * 24 * 60 * 60 * 1000;
 
       try {
-        const apiUrl = `http://localhost:8080/api/v1/klines?market=${name}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`;
+        const apiUrl = `http://localhost:8080/api/v1/klines?market=${`${baseAsset}_${quoteAsset}`}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`;
         const response = await fetch(apiUrl);
 
         if (!response.ok) {
@@ -79,7 +81,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
 
         const responseData = await response.json();
 
-        console.log(`API response for ${name}:`, responseData);
+        console.log(`API response for ${baseAsset}:`, responseData);
 
         let klinesArray: ApiKLine[];
 
@@ -261,7 +263,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   }
 
   // Sanitize name for use in SVG ID. Replace non-alphanumeric characters.
-  const sanitizedname = name.replace(/[^a-zA-Z0-9]/g, '');
+  const sanitizedname = baseAsset.replace(/[^a-zA-Z0-9]/g, '');
   const gradientId = `gradient-${chartData.type}-${sanitizedname}`;
 
   return (

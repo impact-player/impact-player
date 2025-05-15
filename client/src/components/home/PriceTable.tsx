@@ -391,7 +391,7 @@ const PriceTable = () => {
 
                 <div className="col-span-4 flex items-center space-x-3">
                   <Link
-                    href={market.link}
+                    href={`/trade/${market.base_asset}_${market.quote_asset}`}
                     className="flex items-center space-x-3"
                     passHref
                   >
@@ -408,7 +408,11 @@ const PriceTable = () => {
                 </div>
 
                 <div className="col-span-2 flex items-center">
-                  <Link href={market.link} className="w-full" passHref>
+                  <Link
+                    href={`/trade/${market.base_asset}_${market.quote_asset}`}
+                    className="w-full"
+                    passHref
+                  >
                     <span
                       className={`px-2 py-0.5 text-xs rounded-full ${
                         market.status === 'Incoming'
@@ -427,10 +431,10 @@ const PriceTable = () => {
 
                 <div className="col-span-3 flex items-center h-10">
                   {' '}
-                  {/* Graph column */}
                   <Link href={market.link} className="w-full h-full" passHref>
                     <SparklineChart
-                      name={market.name} // Or your API's expected format
+                      baseAsset={market.base_asset}
+                      quoteAsset={market.quote_asset} // Or your API's expected format
                       // Optionally pass daysHistory or interval if you want to override defaults
                       // daysHistory={7}
                       // interval="1h"

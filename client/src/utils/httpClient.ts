@@ -5,7 +5,9 @@ const BASE_URL = 'http://localhost:8080/api/v1';
 
 export async function getTicker(market: string): Promise<Market> {
   const markets = await getTickers();
-  const ticker = markets.find((m) => m.name == market);
+
+  const ticker = markets.find((m) => m.base_asset == market.replace(/_+$/, ''));
+
   if (!ticker) {
     throw new Error(`No ticker found for ${market}`);
   }
@@ -32,7 +34,7 @@ export async function getKlines(
   interval: string,
   startTime: string,
   endTime: string
-): Promise<any[]> {
+): Promise<KLine[]> {
   try {
     const response = await axios.get(
       `${BASE_URL}/klines?market=${market}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`

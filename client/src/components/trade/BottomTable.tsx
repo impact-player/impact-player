@@ -16,14 +16,13 @@ export default function BottomTable({ market }: { market: string }) {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Assert this as the template‑literal type TypeScript expects:
   const room = `trade@${market}` as `trade@${string}`;
 
   const fetchTrades = async () => {
     try {
       setLoading(true);
       setError(null);
-      // Pass through your dynamic market instead of a fixed string
+
       const response = await getTrades(market);
       if (response.success) {
         setTrades(response.data.reverse());
@@ -66,7 +65,6 @@ export default function BottomTable({ market }: { market: string }) {
 
     const mgr = SignalingManager.getInstance();
 
-    // Now TS knows `room` matches `trade@${string}` ✅
     mgr.registerTradeCallback(room, onTrade);
     mgr.subscribe(room);
 

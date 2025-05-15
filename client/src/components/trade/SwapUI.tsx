@@ -6,6 +6,7 @@ import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { ArrowDownIcon } from '@/src/components/icons';
 import { Loader2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 interface SwapUIProps {
   baseCurrency: string;
@@ -161,8 +162,7 @@ export default function SwapUI({ baseCurrency, quoteCurrency }: SwapUIProps) {
 
   const executionCost = quote ? quote.payload.total_cost : '0.00';
 
-  const isSignedIn = false;
-
+  const session = useSession();
   return (
     <>
       <div className="flex mb-4">
@@ -289,7 +289,7 @@ export default function SwapUI({ baseCurrency, quoteCurrency }: SwapUIProps) {
         </div>
       )}
 
-      {isSignedIn ? (
+      {session.data?.user?.email ? (
         <Button
           onClick={createOrder}
           disabled={

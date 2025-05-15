@@ -1,11 +1,18 @@
-import { DepthPayload, TradePayload } from './types';
+import { DepthPayload, TradePayload, TickerPayload } from './types';
 
 export const BASE_URL = 'ws://localhost:8081/ws';
 
 type Callback<T> = (data: T) => void;
 
-type RoomType = 'depth' | 'trade';
+type RoomType = 'depth' | 'trade' | 'ticker';
 type Room = `${RoomType}@${string}`;
+
+// Type mapping to correctly associate room types with their payload types
+type RoomPayloadMap = {
+  depth: DepthPayload;
+  trade: TradePayload;
+  ticker: TickerPayload;
+};
 
 export class SignalingManager {
   private ws: WebSocket;
@@ -13,6 +20,7 @@ export class SignalingManager {
   private buffer: any[] = [];
   private depthCallbacks: Record<string, Callback<DepthPayload>[]> = {};
   private tradeCallbacks: Record<string, Callback<TradePayload>[]> = {};
+  private tickerCallbacks: Record<string, Callback<TickerPayload>[]> = {};
   private id = 1;
   private opened = false;
 
@@ -61,6 +69,13 @@ export class SignalingManager {
               cb({ price, quantity, side, timestamp })
             );
           }
+        } else if (
+          room.startsWith('ticker@') &&
+          this.tickerCallbacks[room]?.length
+        ) {
+          // Pass the entire parsed data object to callbacks
+          // The data format for ticker is { data: { e, p, q, s, t }, stream }
+          this.tickerCallbacks[room].forEach((cb) => cb(data));
         }
       } catch (error) {
         console.error('Error processing message:', error);
@@ -97,47 +112,100 @@ export class SignalingManager {
     }
   }
 
-  public registerDepthCallback(room: string, cb: Callback<DepthPayload>) {
+  public registerDepthCallback(
+    room: `depth@${string}`,
+    cb: Callback<DepthPayload>
+  ) {
     (this.depthCallbacks[room] ||= []).push(cb);
   }
 
-  public registerTradeCallback(room: string, cb: Callback<TradePayload>) {
+  public registerTradeCallback(
+    room: `trade@${string}`,
+    cb: Callback<TradePayload>
+  ) {
     (this.tradeCallbacks[room] ||= []).push(cb);
   }
 
-  public deRegisterDepthCallback(room: string, cb: Callback<DepthPayload>) {
+  public registerTickerCallback(
+    room: `ticker@${string}`,
+    cb: Callback<TickerPayload>
+  ) {
+    (this.tickerCallbacks[room] ||= []).push(cb);
+  }
+
+  public deRegisterDepthCallback(
+    room: `depth@${string}`,
+    cb: Callback<DepthPayload>
+  ) {
     if (!this.depthCallbacks[room]) return;
     this.depthCallbacks[room] = this.depthCallbacks[room].filter(
       (x) => x !== cb
     );
   }
 
-  public deRegisterTradeCallback(room: string, cb: Callback<TradePayload>) {
+  public deRegisterTradeCallback(
+    room: `trade@${string}`,
+    cb: Callback<TradePayload>
+  ) {
     if (!this.tradeCallbacks[room]) return;
     this.tradeCallbacks[room] = this.tradeCallbacks[room].filter(
       (x) => x !== cb
     );
   }
 
+  public deRegisterTickerCallback(
+    room: `ticker@${string}`,
+    cb: Callback<TickerPayload>
+  ) {
+    if (!this.tickerCallbacks[room]) return;
+    this.tickerCallbacks[room] = this.tickerCallbacks[room].filter(
+      (x) => x !== cb
+    );
+  }
+
+  // Fixed type-safe register callback method
   public registerCallback<T extends RoomType>(
     room: `${T}@${string}`,
-    cb: T extends 'depth' ? Callback<DepthPayload> : Callback<TradePayload>
+    cb: Callback<RoomPayloadMap[T]>
   ) {
     if (room.startsWith('depth@')) {
-      this.registerDepthCallback(room, cb as Callback<DepthPayload>);
+      this.registerDepthCallback(
+        room as `depth@${string}`,
+        cb as Callback<DepthPayload>
+      );
     } else if (room.startsWith('trade@')) {
-      this.registerTradeCallback(room, cb as Callback<TradePayload>);
+      this.registerTradeCallback(
+        room as `trade@${string}`,
+        cb as Callback<TradePayload>
+      );
+    } else if (room.startsWith('ticker@')) {
+      this.registerTickerCallback(
+        room as `ticker@${string}`,
+        cb as Callback<TickerPayload>
+      );
     }
   }
 
+  // Fixed type-safe deregister callback method
   public deRegisterCallback<T extends RoomType>(
     room: `${T}@${string}`,
-    cb: T extends 'depth' ? Callback<DepthPayload> : Callback<TradePayload>
+    cb: Callback<RoomPayloadMap[T]>
   ) {
     if (room.startsWith('depth@')) {
-      this.deRegisterDepthCallback(room, cb as Callback<DepthPayload>);
+      this.deRegisterDepthCallback(
+        room as `depth@${string}`,
+        cb as Callback<DepthPayload>
+      );
     } else if (room.startsWith('trade@')) {
-      this.deRegisterTradeCallback(room, cb as Callback<TradePayload>);
+      this.deRegisterTradeCallback(
+        room as `trade@${string}`,
+        cb as Callback<TradePayload>
+      );
+    } else if (room.startsWith('ticker@')) {
+      this.deRegisterTickerCallback(
+        room as `ticker@${string}`,
+        cb as Callback<TickerPayload>
+      );
     }
   }
 }

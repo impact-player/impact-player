@@ -7,6 +7,8 @@ import { getTicker } from '@/src/utils/httpClient';
 import { MarketIcon } from '../market/MarketIcon';
 import { Button } from '../ui/button';
 import { signOut, useSession } from 'next-auth/react';
+import { SignalingManager } from '@/src/utils/SignalingManager';
+import { TickerPayload } from '@/src/utils/types';
 
 interface TradeHeaderProps {
   baseCurrency: string;
@@ -18,6 +20,10 @@ export default function TradeHeader({
   quoteCurrency,
 }: TradeHeaderProps) {
   const [name, setName] = useState<string>();
+  const [price, setPrice] = useState<string>('');
+  const [quantity, setQuantity] = useState<string>('');
+  const [priceChange, setPriceChange] = useState<number>(0);
+  const [prevPrice, setPrevPrice] = useState<number | null>(null);
   const session = useSession();
 
   useEffect(() => {
@@ -29,6 +35,37 @@ export default function TradeHeader({
 
     getTickerData();
   }, [baseCurrency, quoteCurrency]);
+  const market = `${baseCurrency}${quoteCurrency}`;
+  const room = `ticker@${baseCurrency}${quoteCurrency}` as const;
+
+  useEffect(() => {
+    const onTicker = (data: TickerPayload) => {
+      const { p, q, t } = data.data;
+
+      if (p) {
+        const currentPrice = parseFloat(p);
+        setPrice(p);
+        setQuantity(q || '');
+
+        if (prevPrice !== null) {
+          const change = ((currentPrice - prevPrice) / prevPrice) * 100;
+          setPriceChange(parseFloat(change.toFixed(2)));
+        }
+
+        setPrevPrice(currentPrice);
+      }
+    };
+
+    const mgr = SignalingManager.getInstance();
+
+    mgr.registerTickerCallback(room, onTicker);
+    mgr.subscribe(room);
+
+    return () => {
+      mgr.deRegisterTickerCallback(room, onTicker);
+      mgr.unsubscribe(room);
+    };
+  }, [market, room, prevPrice]);
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">
@@ -47,13 +84,16 @@ export default function TradeHeader({
 
         <div className="flex items-center ml-8">
           <div>
-            <div className="text-xl font-bold">94.25</div>
-            <div className="text-xs text-green-500">+2.15 (2.34%)</div>
+            <div className="text-xl font-bold">
+              {(parseFloat(price) * 100).toFixed(2)}%
+            </div>
+
+            <div className="text-xs text-green-500">${priceChange}</div>
           </div>
         </div>
       </div>
       <div>
-        <div className="font-medium">{name}</div>
+        <div className="font-semibold text-lg">{name}</div>
       </div>
       {session.data?.user?.email && (
         <div className="flex items-center space-x-6">

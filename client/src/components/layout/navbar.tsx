@@ -22,24 +22,6 @@ export function Navbar({ activePage = 'home' }: NavbarProps) {
           <Link href="/" passHref className="flex items-center">
             <Image src={'/logo.png'} height={54} width={54} alt={'logo'} />
           </Link>
-
-          {/* <div className="hidden md:flex items-center gap-5">
-            <NavLink href="/trade/SOL_USDC" active={activePage === 'trade'}>
-              Trade
-            </NavLink>
-            <NavLink href="/rewards" active={activePage === 'rewards'}>
-              Rewards
-            </NavLink>
-            <NavLink href="/learn" active={activePage === 'learn'}>
-              Learn
-            </NavLink>
-            <NavLink href="/news" active={activePage === 'news'}>
-              News
-            </NavLink>
-            <NavLink href="/about" active={activePage === 'about'}>
-              About
-            </NavLink>
-          </div> */}
         </div>
 
         <div className="flex items-center gap-4">

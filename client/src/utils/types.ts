@@ -56,5 +56,15 @@ export type TradePayload = {
   timestamp: number;
 };
 
+export interface TickerPayload {
+  data: {
+    e: string;
+    p: string;
+    q: string;
+    s: string;
+    t: number;
+  };
+  stream: string;
+}
 export type RoomType = 'depth' | 'trade';
 export type Room = `${RoomType}@${string}`;

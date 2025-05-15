@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: "Impact Player | The World's Fastest Cricket Prediction Market",
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`antialiased font-mono`}>{children}</body>
+      <body className={`antialiased font-mono`}>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

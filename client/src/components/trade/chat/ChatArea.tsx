@@ -116,7 +116,7 @@ export default function ChatArea({ market }: { market: string }) {
                   {!message.isUser && (
                     <div className="font-medium text-xs">{message.sender}</div>
                   )}
-                  <div>{message.text}</div>
+                  <div className="text-white font-semibold">{message.text}</div>
                   <div className="text-xs opacity-70 text-right">
                     {formatTime(message.timestamp)}
                   </div>

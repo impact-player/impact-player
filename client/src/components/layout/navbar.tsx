@@ -1,13 +1,17 @@
+'use client';
+
 import Link from 'next/link';
 import { GlobeIcon } from '@/src/components/icons';
 import { Button } from '@/src/components/ui/button';
 import Image from 'next/image';
+import { signOut, useSession } from 'next-auth/react';
 
 interface NavbarProps {
   activePage?: 'home' | 'trade' | 'rewards' | 'learn' | 'news' | 'about';
 }
 
 export function Navbar({ activePage = 'home' }: NavbarProps) {
+  const session = useSession();
   return (
     <header className="h-[4.5rem] w-full flex items-center border-b border-border/10 bg-background">
       <nav
@@ -19,7 +23,7 @@ export function Navbar({ activePage = 'home' }: NavbarProps) {
             <Image src={'/logo.png'} height={54} width={54} alt={'logo'} />
           </Link>
 
-          <div className="hidden md:flex items-center gap-5">
+          {/* <div className="hidden md:flex items-center gap-5">
             <NavLink href="/trade/SOL_USDC" active={activePage === 'trade'}>
               Trade
             </NavLink>
@@ -35,38 +39,39 @@ export function Navbar({ activePage = 'home' }: NavbarProps) {
             <NavLink href="/about" active={activePage === 'about'}>
               About
             </NavLink>
-          </div>
+          </div> */}
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm uppercase text-foreground dark:text-foreground">
-              EN
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="rounded-full bg-secondary border-none"
-              aria-label="Language"
-            >
-              <GlobeIcon className="h-5 w-5" />
-            </Button>
-          </div>
-
           <div className="hidden sm:flex items-center gap-2">
-            <Link href="/signin" passHref>
-              <Button
-                variant="outline"
-                className="rounded-xl border-white text-white bg-transparent hover:bg-white/10"
-              >
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/signup" passHref>
-              <Button className="rounded-xl bg-cube-orange hover:bg-cube-orange/90 text-white">
-                Sign Up
-              </Button>
-            </Link>
+            {session.data?.user?.email ? (
+              <div className="flex items-center space-x-6">
+                <div className="flex gap-6 text-sm">
+                  <div>
+                    <div className="text-muted-foreground">Balance(USDC)</div>
+                    <div className="font-medium">$10_000</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl border-white text-white bg-transparent hover:bg-white/10"
+                    onClick={async () => signOut()}
+                  >
+                    Log out
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Link href="/signin" passHref>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl border-white text-white bg-transparent hover:bg-white/10"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </nav>

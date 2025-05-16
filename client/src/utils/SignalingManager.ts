@@ -7,7 +7,6 @@ type Callback<T> = (data: T) => void;
 type RoomType = 'depth' | 'trade' | 'ticker';
 type Room = `${RoomType}@${string}`;
 
-// Type mapping to correctly associate room types with their payload types
 type RoomPayloadMap = {
   depth: DepthPayload;
   trade: TradePayload;

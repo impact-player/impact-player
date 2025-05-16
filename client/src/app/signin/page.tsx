@@ -29,21 +29,9 @@ export default function SignInPage() {
           <div className="flex justify-center">
             <div className="container mx-auto flex max-w-[646px] flex-col">
               <div className="flex flex-col gap-6 p-8 bg-card rounded-2xl border border-border">
-                <h3 className="text-3xl font-bold mb-4">Welcome to Cube</h3>
-
-                <form>
-                  <div className="flex flex-col items-center justify-center gap-6">
-                    <div className="w-full border border-border bg-background grid grid-cols-[auto_1fr_auto] items-center p-0 rounded-2xl overflow-hidden">
-                      <div className="px-4 py-3 flex h-full items-center text-muted-foreground">
-                        Referral Code:
-                      </div>
-                      <Input
-                        className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
-                        placeholder="Enter..."
-                      />
-                    </div>
-                  </div>
-                </form>
+                <h3 className="text-3xl font-bold mb-4">
+                  Welcome to Impact Player
+                </h3>
 
                 <div className="grid w-full">
                   <button

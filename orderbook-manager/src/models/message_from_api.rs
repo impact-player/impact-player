@@ -17,6 +17,8 @@ pub enum MessageFromApi {
     GetOpenOrders { data: GetOpenOrdersPayload },
     #[serde(rename = "GET_USER_BALANCES")]
     GetUserBalances { data: GetUserBalancesPayload },
+    #[serde(rename = "ON_RAMP_USER")]
+    OnRampUser { data: OnRampPayload },
     #[serde(rename = "CREATE_MARKET")]
     CreateMarket { data: CreateMarketPayload },
 }
@@ -61,6 +63,12 @@ pub struct GetOpenOrdersPayload {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetUserBalancesPayload {
+    #[serde(rename = "userId")]
+    pub user_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OnRampPayload {
     #[serde(rename = "userId")]
     pub user_id: String,
 }

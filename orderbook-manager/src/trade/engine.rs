@@ -11,7 +11,7 @@ use crate::{
     services::RedisManager,
 };
 use anyhow::{Ok, Result};
-use rust_decimal_macros::dec;
+use rust_decimal::Decimal;
 use tracing::{error, info};
 
 use super::OrderbookWorker;
@@ -23,39 +23,7 @@ pub struct Engine {
 
 impl Engine {
     pub fn new() -> Self {
-        let mut initial_users = Vec::new();
-
-        initial_users.push(User {
-            id: "1".to_string(),
-            balances: vec![
-                Balance {
-                    ticker: "USDC".to_string(),
-                    balance: dec!(100_000_000),
-                    locked_balance: dec!(0),
-                },
-                Balance {
-                    ticker: "SOL".to_string(),
-                    balance: dec!(100_000_000),
-                    locked_balance: dec!(0),
-                },
-            ],
-        });
-
-        initial_users.push(User {
-            id: "2".to_string(),
-            balances: vec![
-                Balance {
-                    ticker: "USDC".to_string(),
-                    balance: dec!(100_000_000),
-                    locked_balance: dec!(0),
-                },
-                Balance {
-                    ticker: "SOL".to_string(),
-                    balance: dec!(100_000_000),
-                    locked_balance: dec!(0),
-                },
-            ],
-        });
+        let initial_users = Vec::new();
 
         let users = Arc::new(Mutex::new(initial_users));
 
@@ -178,7 +146,6 @@ impl Engine {
                 }
             }
             MessageFromApi::GetUserBalances { data } => {
-                // User balances are not tied to a specific orderbook, so we handle this here
                 let mut users = self.users.lock().unwrap();
                 let user = users
                     .iter_mut()
@@ -189,6 +156,38 @@ impl Engine {
                 let message = MessageToApi::UserBalances {
                     payload: UserBalancesPayload {
                         balances: user.balances.clone(),
+                    },
+                };
+
+                let _ = redis_manager.send_to_api(&client_id, &message);
+            }
+            MessageFromApi::OnRampUser { data } => {
+                let mut users = self.users.lock().unwrap();
+
+                if let Some(user) = users.iter_mut().find(|u| u.id == data.user_id) {
+                    for bal in &mut user.balances {
+                        bal.balance = Decimal::new(10_000, 0);
+                    }
+                } else {
+                    users.push(User {
+                        id: data.user_id.clone(),
+                        balances: vec![Balance {
+                            ticker: "USD".to_string(),       
+                            balance: Decimal::new(10_000, 0),
+                            locked_balance: Decimal::new(0, 0),
+                        }],
+                    });
+                }
+
+                let updated_user = users
+                    .iter()
+                    .find(|u| u.id == data.user_id)
+                    .expect("just inserted or found above");
+
+                let redis_manager = RedisManager::instance();
+                let message = MessageToApi::UserBalances {
+                    payload: UserBalancesPayload {
+                        balances: updated_user.balances.clone(),
                     },
                 };
 
